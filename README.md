@@ -1,7 +1,13 @@
 # 🧮 LimitApp — Мобильный калькулятор пределов
 
 <p align="center">
-  <img src="icon.png" width="128" alt="LimitApp Icon" />
+  <img src="icon.png" width="128" alt="LimitApp Icon" /><br/><br/>
+  <a href="https://github.com/MaloyDevil/limitapp/releases/latest">
+    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.2.0-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
+  </a>
+  <a href="https://github.com/MaloyDevil/limitapp/releases">
+    <img src="https://img.shields.io/badge/📦_Все_Релизы-GitHub-blue?style=for-the-badge&logo=github&logoColor=white" alt="Релизы" />
+  </a>
 </p>
 
 **LimitApp** — современное мобильное приложение на **Python (Flet / Flutter)** и **SymPy** для аналитического вычисления математических пределов любой сложности с пошаговыми объяснениями, автоматическим распознаванием неопределенностей, интерактивным справочником формул и численной таблицей сходимости.
@@ -93,26 +99,17 @@ limitapp/
 
 ---
 
-## 📲 Сборка мобильного приложения в Android APK
+## 📲 Готовый Android APK (Релизы на главной странице)
 
-### Вариант 1: Автоматически через GitHub Actions (Рекомендуемый)
-В репозитории уже настроен workflow [`.github/workflows/build-apk.yml`](.github/workflows/build-apk.yml).
-1. Запушьте проект в ваш репозиторий на GitHub:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit of LimitApp"
-   git remote add origin https://github.com/YOUR_USERNAME/limitapp.git
-   git push -u origin main
-   ```
-2. Откройте вкладку **Actions** в вашем репозитории на GitHub.
-3. Процесс **«Build Android APK»** соберет `.apk` файл.
-4. В разделе **Artifacts** скачайте готовый `limitapp-release-apk` и установите на Android телефон.
+Готовый файл APK автоматически собирается и публикуется прямо на главной странице репозитория в разделе [**Releases**](https://github.com/MaloyDevil/limitapp/releases):
 
-### Вариант 2: Локальная сборка через Flet CLI
-При наличии установленного Flutter SDK и Android SDK на вашем компьютере:
+1. Нажмите на зеленую кнопку **«Скачать Android APK»** в самом начале страницы или перейдите в [**Releases (Последний релиз)**](https://github.com/MaloyDevil/limitapp/releases/latest).
+2. В блоке **Assets** скачайте готовый файл `.apk`.
+3. Откройте файл на Android смартфоне и подтвердите установку. Заходить во вкладку Actions не требуется — релиз доступен прямо с главной страницы!
+
+### Локальная сборка через Flet CLI (для разработчиков):
 ```bash
-flet build apk --project-name limitapp --org com.syrok.limitapp
+flet build apk --project limitapp --product LimitApp --org com.syrok.limitapp --yes
 ```
 Готовый `.apk` появится в папке `build/apk/`.
 

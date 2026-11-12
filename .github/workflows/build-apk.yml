@@ -1,11 +1,14 @@
-name: Build Android APK
+name: Build Android APK & Publish Release
 
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-apk:
@@ -31,17 +34,27 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.47.9'
+          cache: true
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses || true
 
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flet
+          pip install flet flet-cli
 
       - name: Build APK with Flet
         run: |
-          flet build apk --project-name limitapp --org com.syrok.limitapp --no-rich-output || flet build apk --no-rich-output
+          flet build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --yes -v
+
+      - name: Find and List Generated APKs
+        run: |
+          echo "Listing all generated APK files:"
+          find build -type f -name "*.apk" || true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -51,5 +64,35 @@ jobs:
             build/apk/*.apk
             build/app/outputs/flutter-apk/*.apk
             build/app/outputs/apk/release/*.apk
-            **/*.apk
           if-no-files-found: warn
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: v1.2.0
+          name: "LimitApp Pro v1.2.0 (Release APK)"
+          body: |
+            ## 📱 LimitApp Pro v1.2.0 для Android
+            
+            Готовая сборка аналитического мобильного калькулятора математических пределов для Android.
+            
+            ### ✨ Ключевые возможности:
+            - **Символьная клавиатура**: эргономичная сетка 4×5 и раскрывающийся блок `Доп. f(x)`.
+            - **🎲 Генератор случайных пределов**: тестирование калькулятора в 1 клик.
+            - **⭐ Избранные вычисления**: сохранение задач и фильтр в истории.
+            - **🔍 Живой поиск в справочнике**: мгновенная фильтрация замечательных пределов и формул.
+            - **🎨 Новая адаптивная иконка**: чистый squircle без черных полей с прозрачными углами.
+            
+            ---
+            ### 📥 Установка:
+            Скачайте прикрепленный файл `.apk` ниже в разделе **Assets** и установите на Android смартфон.
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: |
+            build/apk/*.apk
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
