@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор математических пределов
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.4.0
+Версия: 1.4.1
 """
 
 import sys
@@ -253,7 +253,7 @@ class LimitApp:
             border=ft.OutlineInputBorder(border_radius=12),
             prefix_icon=ft.Icons.KEY,
             hint_text="AIzaSy...",
-            helper_text="Бесплатный ключ из Google AI Studio",
+            helper="Бесплатный ключ из Google AI Studio",
         )
 
         model_dropdown = ft.Dropdown(
@@ -971,7 +971,7 @@ class LimitApp:
                         ),
                         padding=16,
                     ),
-                    color=ft.Colors.ERROR_CONTAINER,
+                    bgcolor=ft.Colors.ERROR_CONTAINER,
                 )
             ]
             self.page.update()
@@ -1360,7 +1360,7 @@ class LimitApp:
                     ),
                     padding=16,
                 ),
-                color=ft.Colors.ERROR_CONTAINER,
+                bgcolor=ft.Colors.ERROR_CONTAINER,
             )
             self.result_container.controls.append(error_card)
             self.page.update()
@@ -1933,7 +1933,7 @@ class LimitApp:
                                                 ft.Row(
                                                     controls=[
                                                         ft.Icon(ft.Icons.AUTO_AWESOME, size=14, color=ft.Colors.AMBER_400),
-                                                        ft.Text("Версия 1.4.0 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
+                                                        ft.Text("Версия 1.4.1 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
                                                     ],
                                                     spacing=4,
                                                     tight=True,
@@ -2019,7 +2019,7 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                                        ft.Text("Ключевые возможности v1.4.0", weight=ft.FontWeight.BOLD, size=15),
+                                        ft.Text("Ключевые возможности v1.4.1", weight=ft.FontWeight.BOLD, size=15),
                                     ],
                                     spacing=8,
                                     tight=True,

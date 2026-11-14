@@ -3,7 +3,7 @@
 <p align="center">
   <img src="icon.png" width="128" alt="LimitApp Icon" /><br/><br/>
   <a href="https://github.com/MaloyDevil/limitapp/releases/latest">
-    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.4.0-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
+    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.4.1-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
   </a>
   <a href="https://github.com/MaloyDevil/limitapp/releases">
     <img src="https://img.shields.io/badge/📦_Все_Релизы-GitHub-blue?style=for-the-badge&logo=github&logoColor=white" alt="Релизы" />
@@ -18,7 +18,7 @@
 
 ---
 
-## ✨ Основные возможности v1.4.0
+## ✨ Основные возможности v1.4.1
 
 1. **🤖 Интеграция с Google Gemini AI (Бесплатный API):**
    - Интеллектуальный преподавательский разбор пределов любой сложности с подробными математическими формулами и пояснениями.
