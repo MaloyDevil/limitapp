@@ -3,7 +3,7 @@
 <p align="center">
   <img src="icon.png" width="128" alt="LimitApp Icon" /><br/><br/>
   <a href="https://github.com/MaloyDevil/limitapp/releases/latest">
-    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.3.0-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
+    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.3.1-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
   </a>
   <a href="https://github.com/MaloyDevil/limitapp/releases">
     <img src="https://img.shields.io/badge/📦_Все_Релизы-GitHub-blue?style=for-the-badge&logo=github&logoColor=white" alt="Релизы" />
@@ -14,11 +14,11 @@
 
 > **Создатель:** Нарницкий Роман  
 > **Никнейм:** Syrok  
-> **Версия:** 1.3.0 Pro  
+> **Версия:** 1.3.1 Pro (Bugfix)  
 
 ---
 
-## ✨ Основные возможности v1.3.0
+## ✨ Основные возможности v1.3.1
 
 1. **Решение любого существующего предела:**
    - Двусторонние пределы: $\lim_{x \to x_0} f(x)$

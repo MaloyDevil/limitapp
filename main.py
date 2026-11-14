@@ -63,7 +63,7 @@ class LimitApp:
             hint_text="Например: sin(x)/x или lim(x->0) (1-cos(x))/x^2",
             value="sin(x)/x",
             prefix_icon=ft.Icons.FUNCTIONS,
-            border_radius=12,
+            border=ft.OutlineInputBorder(border_radius=12),
             autofocus=True,
             expand=True,
             on_change=self.on_input_changed,
@@ -75,7 +75,7 @@ class LimitApp:
             value="x",
             width=90,
             text_align=ft.TextAlign.CENTER,
-            border_radius=12,
+            border=ft.OutlineInputBorder(border_radius=12),
             on_change=self.on_input_changed,
         )
 
@@ -83,7 +83,7 @@ class LimitApp:
             label="Стремится к (x₀)",
             value="0",
             hint_text="0, oo, pi, 1...",
-            border_radius=12,
+            border=ft.OutlineInputBorder(border_radius=12),
             expand=True,
             on_change=self.on_input_changed,
             on_submit=self.on_calculate_click,
@@ -92,14 +92,14 @@ class LimitApp:
         self.dir_dropdown = ft.Dropdown(
             label="Направление предела",
             value="+-",
-            border_radius=12,
+            border=ft.OutlineInputBorder(border_radius=12),
             options=[
                 ft.dropdown.Option("+-", "Двусторонний (x → x₀)"),
                 ft.dropdown.Option("+", "Справа (x → x₀⁺)"),
                 ft.dropdown.Option("-", "Слева (x → x₀⁻)"),
             ],
             expand=True,
-            on_change=self.on_input_changed,
+            on_select=self.on_input_changed,
         )
 
         # Result display container
@@ -963,7 +963,7 @@ class LimitApp:
             hint_text="Поиск по справочнику (формула, функция, предел)...",
             value=self.handbook_search_query,
             prefix_icon=ft.Icons.SEARCH,
-            border_radius=12,
+            border=ft.OutlineInputBorder(border_radius=12),
             dense=True,
             content_padding=ft.Padding.symmetric(horizontal=12, vertical=8),
             on_change=self.on_handbook_search_change,
@@ -1352,7 +1352,7 @@ class LimitApp:
                 ),
                 width=64,
                 height=64,
-                bgcolor=ft.Colors.INDIGO_950,
+                bgcolor=ft.Colors.INDIGO_900,
                 border_radius=14,
                 padding=5,
                 border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
@@ -1436,7 +1436,7 @@ class LimitApp:
                                         ),
                                         width=48,
                                         height=48,
-                                        bgcolor=ft.Colors.INDIGO_950,
+                                        bgcolor=ft.Colors.INDIGO_900,
                                         border_radius=12,
                                         padding=5,
                                         border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
