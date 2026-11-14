@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор математических пределов
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.4.2
+Версия: 1.5.0
 """
 
 import sys
@@ -328,6 +328,7 @@ class LimitApp:
                 spacing=8,
                 tight=True,
             ),
+            scrollable=True,
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -369,7 +370,7 @@ class LimitApp:
                     spacing=12,
                     tight=True,
                 ),
-                width=380,
+                width=330,
             ),
             actions=[
                 ft.TextButton("Закрыть", on_click=on_close),
@@ -776,8 +777,8 @@ class LimitApp:
         calc_btn = ft.FilledButton(
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.FLASH_ON, color=ft.Colors.AMBER_300, size=18),
-                    ft.Text("Рассчитать", weight=ft.FontWeight.BOLD, size=14),
+                    ft.Icon(ft.Icons.FLASH_ON, color=ft.Colors.AMBER_300, size=17),
+                    ft.Text("Рассчитать", weight=ft.FontWeight.BOLD, size=13.5, no_wrap=True),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 tight=True,
@@ -786,7 +787,7 @@ class LimitApp:
                 bgcolor=ft.Colors.INDIGO_600,
                 color=ft.Colors.WHITE,
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding.symmetric(vertical=12, horizontal=8),
+                padding=ft.Padding.symmetric(vertical=12, horizontal=4),
             ),
             expand=3,
             on_click=self.on_calculate_click,
@@ -795,15 +796,15 @@ class LimitApp:
         gemini_btn = ft.FilledTonalButton(
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=18),
-                    ft.Text("Gemini AI", weight=ft.FontWeight.BOLD, size=14),
+                    ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=17),
+                    ft.Text("Gemini AI", weight=ft.FontWeight.BOLD, size=13.5, no_wrap=True),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 tight=True,
             ),
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding.symmetric(vertical=12, horizontal=8),
+                padding=ft.Padding.symmetric(vertical=12, horizontal=4),
             ),
             expand=3,
             tooltip="Решить с подробным объяснением от Google Gemini AI",
@@ -1229,7 +1230,10 @@ class LimitApp:
                                 tight=True,
                             ),
                             ft.Text("Демонстрация сходимости функции:", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Container(content=data_table, alignment=ft.Alignment.CENTER),
+                            ft.Container(
+                                content=ft.Row(controls=[data_table], scroll=ft.ScrollMode.ADAPTIVE, alignment=ft.MainAxisAlignment.CENTER),
+                                alignment=ft.Alignment.CENTER,
+                            ),
                         ],
                         spacing=8,
                     ),
@@ -1661,7 +1665,7 @@ class LimitApp:
                 leading=ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
                 controls=[
                     ft.Container(
-                        content=equiv_table,
+                        content=ft.Row(controls=[equiv_table], scroll=ft.ScrollMode.ADAPTIVE, alignment=ft.MainAxisAlignment.CENTER),
                         padding=8,
                         alignment=ft.Alignment.CENTER,
                     )
@@ -1785,6 +1789,7 @@ class LimitApp:
                 clear_btn,
             ],
             alignment=ft.MainAxisAlignment.START,
+            wrap=True,
         )
         history_items.append(filter_row)
 
@@ -1940,7 +1945,7 @@ class LimitApp:
                                                 ft.Row(
                                                     controls=[
                                                         ft.Icon(ft.Icons.AUTO_AWESOME, size=14, color=ft.Colors.AMBER_400),
-                                                        ft.Text("Версия 1.4.2 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
+                                                        ft.Text("Версия 1.5.0 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
                                                     ],
                                                     spacing=4,
                                                     tight=True,
@@ -2026,7 +2031,7 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                                        ft.Text("Ключевые возможности v1.4.2", weight=ft.FontWeight.BOLD, size=15),
+                                        ft.Text("Ключевые возможности v1.5.0 (Полный релиз)", weight=ft.FontWeight.BOLD, size=15),
                                     ],
                                     spacing=8,
                                     tight=True,
@@ -2035,7 +2040,7 @@ class LimitApp:
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=22),
                                     title=ft.Text("✨ Бесплатный Google Gemini AI", size=13, weight=ft.FontWeight.BOLD),
-                                    subtitle=ft.Text("Пошаговое объяснение любого предела, теорем и графического смысла через Gemini 1.5 Flash, 2.0 Flash и 1.5 Pro.", size=11),
+                                    subtitle=ft.Text("Пошаговое объяснение любого предела, теорем и графического смысла через Gemini 3.1 Flash-Lite, 3.5 Flash-Lite и 3.8 Flash.", size=11),
                                 ),
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.TOUCH_APP, color=ft.Colors.PRIMARY, size=22),
