@@ -9,12 +9,13 @@ import httpx
 
 
 GEMINI_MODELS = [
-    ("gemini-1.5-flash", "Gemini 1.5 Flash (Быстрый и бесплатный)"),
-    ("gemini-2.0-flash", "Gemini 2.0 Flash (Новейший ИИ)"),
-    ("gemini-1.5-pro", "Gemini 1.5 Pro (Глубокий анализ)"),
+    ("gemini-3.1-flash-lite", "Gemini 3.1 Flash-Lite (Быстрый, стабильный и бесплатный)"),
+    ("gemini-3.5-flash-lite", "Gemini 3.5 Flash-Lite (Новейший и производительный)"),
+    ("gemini-3.8-flash", "Gemini 3.8 Flash (Флагманский анализ)"),
 ]
 
-DEFAULT_MODEL = "gemini-1.5-flash"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
+FALLBACK_MODELS = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]
 
 
 def build_math_prompt(expr: str, var: str, point: str, direction: str) -> str:
@@ -50,30 +51,7 @@ lim ({dir_math}) [ {expr} ]
 Форматируй ответ в понятном GitHub Markdown с формулами, списками и выделением ключевых шагов. Отвечай на русском языке."""
 
 
-def solve_limit_with_gemini(
-    expr: str,
-    var: str = "x",
-    point: str = "0",
-    direction: str = "+-",
-    api_key: Optional[str] = None,
-    model: str = DEFAULT_MODEL,
-    timeout: float = 25.0,
-) -> Dict[str, Any]:
-    """
-    Calls Google Gemini REST API to solve the limit with AI reasoning.
-    Returns:
-        dict: {"success": bool, "text": str, "model": str, "error": str}
-    """
-    clean_key = (api_key or "").strip()
-    if not clean_key:
-        return {
-            "success": False,
-            "error": "API ключ Gemini не указан. Пожалуйста, введите ваш бесплатный ключ в настройках ИИ.",
-        }
-
-    prompt = build_math_prompt(expr, var, point, direction)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={clean_key}"
-
+def _execute_gemini_request(url: str, prompt: str, timeout: float) -> tuple[int, dict, str]:
     payload = {
         "contents": [
             {
@@ -87,61 +65,112 @@ def solve_limit_with_gemini(
             "maxOutputTokens": 2048,
         },
     }
-
-    try:
-        with httpx.Client(timeout=timeout) as client:
-            resp = client.post(url, json=payload)
-
-        if resp.status_code == 200:
+    with httpx.Client(timeout=timeout) as client:
+        resp = client.post(url, json=payload)
+        try:
             data = resp.json()
-            candidates = data.get("candidates", [])
-            if candidates:
-                first_cand = candidates[0]
-                content = first_cand.get("content", {})
-                parts = content.get("parts", [])
-                if parts:
-                    ai_text = parts[0].get("text", "")
-                    return {
-                        "success": True,
-                        "text": ai_text,
-                        "model": model,
-                        "error": None,
-                    }
+        except Exception:
+            data = {}
+        return resp.status_code, data, resp.text
+
+
+def solve_limit_with_gemini(
+    expr: str,
+    var: str = "x",
+    point: str = "0",
+    direction: str = "+-",
+    api_key: Optional[str] = None,
+    model: str = DEFAULT_MODEL,
+    timeout: float = 35.0,
+) -> Dict[str, Any]:
+    """
+    Calls Google Gemini REST API to solve the limit with AI reasoning.
+    Includes automatic fallback to stable models if a deprecated or overloaded model is requested.
+    """
+    clean_key = (api_key or "").strip()
+    if not clean_key:
+        return {
+            "success": False,
+            "error": "API ключ Gemini не указан. Пожалуйста, введите ваш бесплатный ключ в настройках ИИ.",
+        }
+
+    prompt = build_math_prompt(expr, var, point, direction)
+
+    # Models queue: chosen model first, then fallback models if different
+    models_to_try = [model]
+    for fb in FALLBACK_MODELS:
+        if fb not in models_to_try:
+            models_to_try.append(fb)
+
+    last_error = ""
+
+    for cur_model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{cur_model}:generateContent?key={clean_key}"
+        try:
+            status_code, data, raw_text = _execute_gemini_request(url, prompt, timeout)
+
+            if status_code == 200:
+                candidates = data.get("candidates", [])
+                if candidates:
+                    first_cand = candidates[0]
+                    content = first_cand.get("content", {})
+                    parts = content.get("parts", [])
+                    if parts:
+                        ai_text = parts[0].get("text", "")
+                        return {
+                            "success": True,
+                            "text": ai_text,
+                            "model": cur_model,
+                            "error": None,
+                        }
+                return {
+                    "success": False,
+                    "error": "Модель Gemini вернула пустой ответ. Попробуйте повторить запрос.",
+                }
+
+            elif status_code in (400, 403):
+                err_data = data.get("error", {})
+                err_msg = err_data.get("message", "Неверный API ключ или доступ запрещен")
+                return {
+                    "success": False,
+                    "error": f"Ошибка авторизации Google Gemini ({status_code}): {err_msg}. Проверьте правильность API ключа.",
+                }
+
+            elif status_code == 404:
+                err_data = data.get("error", {})
+                err_msg = err_data.get("message", "Модель недоступна")
+                last_error = f"Модель {cur_model} недоступна: {err_msg}"
+                # If there are fallback models, loop will automatically try the next stable model
+                continue
+
+            elif status_code in (429, 503):
+                err_data = data.get("error", {})
+                err_msg = err_data.get("message", "Высокая нагрузка на сервер Google Gemini")
+                last_error = f"Сервер Gemini перегружен ({status_code}): {err_msg}"
+                # Try fallback model
+                continue
+
+            else:
+                err_data = data.get("error", {})
+                err_msg = err_data.get("message", raw_text[:180])
+                last_error = f"Ошибка сервера Google Gemini ({status_code}): {err_msg}"
+                continue
+
+        except httpx.ConnectError:
             return {
                 "success": False,
-                "error": "Модель Gemini вернула пустой ответ. Попробуйте повторить запрос.",
+                "error": "Не удалось подключиться к серверам Google Gemini. Проверьте подключение к интернету.",
+            }
+        except httpx.TimeoutException:
+            last_error = f"Время ожидания ответа от модели {cur_model} истекло."
+            continue
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Сбой обращения к Gemini API: {str(e)}",
             }
 
-        elif resp.status_code in (400, 403):
-            err_data = resp.json().get("error", {})
-            err_msg = err_data.get("message", "Неверный API ключ")
-            return {
-                "success": False,
-                "error": f"Ошибка авторизации Google Gemini ({resp.status_code}): {err_msg}. Проверьте правильность API ключа.",
-            }
-        elif resp.status_code == 429:
-            return {
-                "success": False,
-                "error": "Превышен бесплатный лимит запросов Google Gemini (429 Too Many Requests). Подождите 1 минуту и попробуйте снова.",
-            }
-        else:
-            return {
-                "success": False,
-                "error": f"Ошибка сервера Google Gemini (HTTP {resp.status_code}): {resp.text[:200]}",
-            }
-
-    except httpx.ConnectError:
-        return {
-            "success": False,
-            "error": "Не удалось подключиться к серверам Google Gemini. Проверьте подключение к интернету.",
-        }
-    except httpx.TimeoutException:
-        return {
-            "success": False,
-            "error": "Время ожидания ответа от Google Gemini истекло (таймаут). Попробуйте снова.",
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Сбой обращения к Gemini API: {str(e)}",
-        }
+    return {
+        "success": False,
+        "error": last_error or "Не удалось получить ответ от Google Gemini. Попробуйте снова позже.",
+    }

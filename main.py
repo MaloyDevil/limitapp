@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор математических пределов
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.4.1
+Версия: 1.4.2
 """
 
 import sys
@@ -230,7 +230,12 @@ class LimitApp:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
                     api_key = cfg.get("gemini_api_key", api_key)
-                    model = cfg.get("gemini_model", model)
+                    saved_model = cfg.get("gemini_model", model)
+                    known_ids = [m[0] for m in gemini_solver.GEMINI_MODELS]
+                    if saved_model in known_ids:
+                        model = saved_model
+                    else:
+                        model = gemini_solver.DEFAULT_MODEL
             except Exception:
                 pass
         return api_key, model
@@ -1130,7 +1135,7 @@ class LimitApp:
                 controls=[fav_btn, copy_btn, ai_deep_btn],
                 alignment=ft.MainAxisAlignment.END,
                 spacing=6,
-                tight=True,
+                wrap=True,
             )
         )
 
@@ -1338,7 +1343,7 @@ class LimitApp:
                                 controls=[
                                     ft.FilledButton(
                                         content=ft.Row(
-                                            controls=[ft.Icon(ft.Icons.SETTINGS, size=16), ft.Text("Настроить API ключ", size=12)],
+                                            controls=[ft.Icon(ft.Icons.SETTINGS, size=15), ft.Text("Настроить API ключ", size=12)],
                                             spacing=6,
                                             tight=True,
                                         ),
@@ -1346,7 +1351,7 @@ class LimitApp:
                                     ),
                                     ft.OutlinedButton(
                                         content=ft.Row(
-                                            controls=[ft.Icon(ft.Icons.FLASH_ON, size=16), ft.Text("Решить через SymPy", size=12)],
+                                            controls=[ft.Icon(ft.Icons.FLASH_ON, size=15), ft.Text("Решить через SymPy", size=12)],
                                             spacing=6,
                                             tight=True,
                                         ),
@@ -1354,6 +1359,7 @@ class LimitApp:
                                     ),
                                 ],
                                 spacing=8,
+                                wrap=True,
                             ),
                         ],
                         spacing=10,
@@ -1394,6 +1400,7 @@ class LimitApp:
                 ),
             ],
             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            wrap=True,
         )
 
         ai_toolbar = ft.Row(
@@ -1424,7 +1431,7 @@ class LimitApp:
                 ),
             ],
             spacing=6,
-            tight=True,
+            wrap=True,
         )
 
         md_view = ft.Markdown(
@@ -1933,7 +1940,7 @@ class LimitApp:
                                                 ft.Row(
                                                     controls=[
                                                         ft.Icon(ft.Icons.AUTO_AWESOME, size=14, color=ft.Colors.AMBER_400),
-                                                        ft.Text("Версия 1.4.1 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
+                                                        ft.Text("Версия 1.4.2 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
                                                     ],
                                                     spacing=4,
                                                     tight=True,
@@ -2019,7 +2026,7 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                                        ft.Text("Ключевые возможности v1.4.1", weight=ft.FontWeight.BOLD, size=15),
+                                        ft.Text("Ключевые возможности v1.4.2", weight=ft.FontWeight.BOLD, size=15),
                                     ],
                                     spacing=8,
                                     tight=True,

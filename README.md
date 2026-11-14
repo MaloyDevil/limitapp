@@ -3,7 +3,7 @@
 <p align="center">
   <img src="icon.png" width="128" alt="LimitApp Icon" /><br/><br/>
   <a href="https://github.com/MaloyDevil/limitapp/releases/latest">
-    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.4.1-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
+    <img src="https://img.shields.io/badge/📱_Скачать_Android_APK-v1.4.2-success?style=for-the-badge&logo=android&logoColor=white" alt="Скачать APK" />
   </a>
   <a href="https://github.com/MaloyDevil/limitapp/releases">
     <img src="https://img.shields.io/badge/📦_Все_Релизы-GitHub-blue?style=for-the-badge&logo=github&logoColor=white" alt="Релизы" />
@@ -18,11 +18,11 @@
 
 ---
 
-## ✨ Основные возможности v1.4.1
+## ✨ Основные возможности v1.4.2
 
 1. **🤖 Интеграция с Google Gemini AI (Бесплатный API):**
    - Интеллектуальный преподавательский разбор пределов любой сложности с подробными математическими формулами и пояснениями.
-   - Поддержка актуальных моделей: `Gemini 1.5 Flash` (быстрая и бесплатная), `Gemini 2.0 Flash` (новейший ИИ) и `Gemini 1.5 Pro` (глубокий анализ).
+   - Поддержка актуальных моделей: `Gemini 3.1 Flash-Lite` (быстрая и бесплатная), `Gemini 3.5 Flash-Lite` (новейший ИИ) и `Gemini 3.8 Flash` (глубокий анализ).
    - Встроенное окно настроек API-ключа с проверкой статуса подключения и ссылкой на получение бесплатного ключа в Google AI Studio.
    - Кнопка моментальной сверки аналитического решения SymPy с объяснением искусственного интеллекта.
 
