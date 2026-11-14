@@ -2,6 +2,7 @@
 LimitApp - Мобильный калькулятор математических пределов
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine)
+Версия: 1.3.0
 """
 
 import sys
@@ -15,9 +16,9 @@ import engine
 import presets
 
 _base_dir = os.path.dirname(os.path.abspath(__file__))
-ICON_PNG = os.path.join(_base_dir, "icon.png") if os.path.exists(os.path.join(_base_dir, "icon.png")) else os.path.join(_base_dir, "icon.jpg")
-ICON_ICO = os.path.join(_base_dir, "icon.ico") if os.path.exists(os.path.join(_base_dir, "icon.ico")) else ICON_PNG
-ICON_PATH = ICON_PNG
+ICON_PNG = os.path.join(_base_dir, "icon.png") if os.path.exists(os.path.join(_base_dir, "icon.png")) else os.path.join(_base_dir, "assets", "icon.png")
+ICON_ICO = os.path.join(_base_dir, "icon.ico") if os.path.exists(os.path.join(_base_dir, "icon.ico")) else os.path.join(_base_dir, "assets", "icon.ico")
+ICON_PATH = ICON_PNG if os.path.exists(ICON_PNG) else (ICON_ICO if os.path.exists(ICON_ICO) else "")
 
 
 class LimitApp:
@@ -30,28 +31,42 @@ class LimitApp:
         # Configure window & page
         self.page.title = "LimitApp | Калькулятор Пределов"
         if hasattr(self.page, "window"):
-            self.page.window.width = 420
-            self.page.window.height = 860
+            self.page.window.width = 430
+            self.page.window.height = 880
             self.page.window.min_width = 360
             self.page.window.min_height = 640
             self.page.window.resizable = True
             try:
-                self.page.window.icon = ICON_ICO if os.path.exists(ICON_ICO) else ICON_PNG
+                if os.path.exists(ICON_ICO):
+                    self.page.window.icon = ICON_ICO
+                elif os.path.exists(ICON_PNG):
+                    self.page.window.icon = ICON_PNG
             except Exception:
                 pass
 
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
 
+        # Live Math preview label
+        self.live_preview_text = ft.Text(
+            "lim (x → 0) [ sin(x)/x ]",
+            size=13,
+            weight=ft.FontWeight.W_600,
+            color=ft.Colors.PRIMARY,
+            no_wrap=True,
+            overflow=ft.TextOverflow.ELLIPSIS,
+        )
+
         # UI Controls for Calculator
         self.expr_input = ft.TextField(
             label="Функция f(x)",
-            hint_text="Например: sin(x)/x или (1+1/x)^x",
+            hint_text="Например: sin(x)/x или lim(x->0) (1-cos(x))/x^2",
             value="sin(x)/x",
             prefix_icon=ft.Icons.FUNCTIONS,
             border_radius=12,
             autofocus=True,
             expand=True,
+            on_change=self.on_input_changed,
             on_submit=self.on_calculate_click,
         )
 
@@ -61,19 +76,21 @@ class LimitApp:
             width=90,
             text_align=ft.TextAlign.CENTER,
             border_radius=12,
+            on_change=self.on_input_changed,
         )
 
         self.point_input = ft.TextField(
             label="Стремится к (x₀)",
             value="0",
-            hint_text="0, oo, 1...",
+            hint_text="0, oo, pi, 1...",
             border_radius=12,
             expand=True,
+            on_change=self.on_input_changed,
             on_submit=self.on_calculate_click,
         )
 
         self.dir_dropdown = ft.Dropdown(
-            label="Направление",
+            label="Направление предела",
             value="+-",
             border_radius=12,
             options=[
@@ -82,6 +99,7 @@ class LimitApp:
                 ft.dropdown.Option("-", "Слева (x → x₀⁻)"),
             ],
             expand=True,
+            on_change=self.on_input_changed,
         )
 
         # Result display container
@@ -97,7 +115,7 @@ class LimitApp:
         self.content_container = ft.Container(
             content=self.calc_view,
             expand=True,
-            padding=ft.Padding.symmetric(horizontal=16, vertical=12),
+            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
         )
 
         # Mobile Bottom Navigation Bar
@@ -136,11 +154,19 @@ class LimitApp:
         )
 
         leading_control = (
-            ft.Image(
-                src=ICON_PNG,
+            ft.Container(
+                content=ft.Image(
+                    src=ICON_PNG,
+                    width=28,
+                    height=28,
+                    fit=ft.BoxFit.CONTAIN,
+                ),
+                bgcolor=ft.Colors.INDIGO_900,
+                border_radius=8,
+                padding=3,
                 width=34,
                 height=34,
-                fit=ft.BoxFit.CONTAIN,
+                alignment=ft.Alignment.CENTER,
             )
             if os.path.exists(ICON_PNG)
             else ft.Icon(ft.Icons.ALL_INCLUSIVE, color=ft.Colors.AMBER_400)
@@ -162,6 +188,7 @@ class LimitApp:
                         border_radius=8,
                     ),
                 ],
+                tight=True,
             ),
             actions=[
                 ft.IconButton(
@@ -189,7 +216,10 @@ class LimitApp:
         self.page.update()
 
     def show_toast(self, message: str):
-        self.page.show_dialog(ft.SnackBar(ft.Text(message)))
+        try:
+            self.page.show_dialog(ft.SnackBar(ft.Text(message)))
+        except Exception:
+            pass
 
     def on_nav_change(self, e):
         idx = self.nav_bar.selected_index
@@ -203,15 +233,37 @@ class LimitApp:
             self.content_container.content = self.build_about_view()
         self.page.update()
 
+    def on_input_changed(self, e=None):
+        self.update_live_preview()
+
+    def update_live_preview(self):
+        expr = (self.expr_input.value or "f(x)").strip()
+        var = (self.var_input.value or "x").strip()
+        pt = (self.point_input.value or "0").strip()
+        d = self.dir_dropdown.value or "+-"
+
+        d_str = ""
+        if d == "+":
+            d_str = "⁺"
+        elif d == "-":
+            d_str = "⁻"
+
+        pt_display = pt.replace("oo", "∞").replace("pi", "π")
+        self.live_preview_text.value = f"lim ({var} → {pt_display}{d_str}) [ {expr} ]"
+        try:
+            self.page.update()
+        except Exception:
+            pass
+
     def insert_symbol(self, sym: str):
         if sym == "CLEAR":
             self.expr_input.value = ""
         elif sym == "BACK":
             val = self.expr_input.value or ""
             known_tokens = [
-                "arcsin(", "arccos(", "arctg(", "sinh(", "cosh(",
+                "arcsin(", "arccos(", "arcctg(", "arctg(", "sinh(", "cosh(", "tanh(",
                 "sin(", "cos(", "tan(", "cot(", "ctg(",
-                "sqrt(", "abs(", "exp(", "log(", "ln(",
+                "sqrt(", "cbrt(", "abs(", "exp(", "log(", "ln(", "lg(",
                 "oo", "pi",
             ]
             deleted = False
@@ -225,12 +277,20 @@ class LimitApp:
         else:
             self.expr_input.value = (self.expr_input.value or "") + sym
         self._focus_control(self.expr_input)
-        self.page.update()
+        self.update_live_preview()
+
+    def select_variable(self, v: str):
+        self.var_input.value = v
+        # Sequence limits typically tend to infinity
+        if v == "n" and self.point_input.value == "0":
+            self.point_input.value = "oo"
+        self._focus_control(self.var_input)
+        self.update_live_preview()
 
     def insert_point(self, val: str):
         self.point_input.value = val
         self._focus_control(self.point_input)
-        self.page.update()
+        self.update_live_preview()
 
     def _focus_control(self, ctrl):
         try:
@@ -255,12 +315,22 @@ class LimitApp:
         self.point_input.value = "0"
         self.dir_dropdown.value = "+-"
         self.result_container.visible = False
-        self.page.update()
+        self.update_live_preview()
         self.show_toast("Поля очищены")
 
     def make_key(self, code: str, label: str, ktype: str) -> ft.Control:
+        # Dynamic font sizing to prevent label from overflowing button container
+        if len(label) >= 6:
+            font_size = 10.0
+        elif len(label) >= 4:
+            font_size = 11.0
+        elif len(label) >= 2:
+            font_size = 12.5
+        else:
+            font_size = 15.0
+
         if ktype == "clear":
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=15, color=ft.Colors.ON_ERROR_CONTAINER)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.ON_ERROR_CONTAINER, no_wrap=True)
             bgcolor = ft.Colors.ERROR_CONTAINER
             border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
         elif ktype == "back":
@@ -268,31 +338,38 @@ class LimitApp:
             bgcolor = ft.Colors.SECONDARY_CONTAINER
             border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
         elif ktype == "var":
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, italic=True, size=15, color=ft.Colors.ON_PRIMARY_CONTAINER)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, italic=True, size=font_size, color=ft.Colors.ON_PRIMARY_CONTAINER, no_wrap=True)
             bgcolor = ft.Colors.PRIMARY_CONTAINER
             border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
         elif ktype == "func":
-            content = ft.Text(label, weight=ft.FontWeight.W_600, size=13, color=ft.Colors.PRIMARY)
+            content = ft.Text(label, weight=ft.FontWeight.W_600, size=font_size, color=ft.Colors.PRIMARY, no_wrap=True)
             bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
             border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+        elif ktype == "num":
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=15, color=ft.Colors.ON_SURFACE, no_wrap=True)
+            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST
+            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
         else:  # "op"
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=16, color=ft.Colors.ON_SURFACE)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=font_size, color=ft.Colors.ON_SURFACE, no_wrap=True)
             bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST
             border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
 
         return ft.Container(
             content=content,
             alignment=ft.Alignment.CENTER,
-            height=40,
+            height=38,
             expand=1,
             bgcolor=bgcolor,
-            border_radius=9,
+            border_radius=8,
             border=border,
+            padding=ft.Padding.symmetric(horizontal=2),
+            clip_behavior=ft.ClipBehavior.HARD_EDGE,
             ink=True,
             on_click=lambda e, s=code: self.insert_symbol(s),
         )
 
     def build_calculator_view(self) -> ft.Control:
+        # Ergonomic 5-row mathematical keyboard
         row1_keys = [
             ("sin(", "sin", "func"),
             ("cos(", "cos", "func"),
@@ -309,49 +386,75 @@ class LimitApp:
         ]
         row3_keys = [
             ("x", "x", "var"),
+            ("n", "n", "var"),
             ("e", "e", "var"),
             ("pi", "π", "var"),
             ("(", "(", "op"),
-            (")", ")", "op"),
         ]
         row4_keys = [
             ("oo", "∞", "var"),
             ("+", "+", "op"),
             ("-", "−", "op"),
             ("*", "×", "op"),
+            (")", ")", "op"),
+        ]
+        row5_keys = [
             ("/", "÷", "op"),
+            ("0", "0", "num"),
+            ("1", "1", "num"),
+            (".", ".", "num"),
+            (",", ",", "num"),
         ]
 
-        extra_keys = [
+        # Extended functions row (expandable)
+        extra_keys_1 = [
             ("arcsin(", "arcsin", "func"),
             ("arccos(", "arccos", "func"),
             ("atan(", "arctg", "func"),
+            ("acot(", "arcctg", "func"),
             ("exp(", "exp", "func"),
+        ]
+        extra_keys_2 = [
             ("log(", "log", "func"),
+            ("sinh(", "sh", "func"),
+            ("cosh(", "ch", "func"),
+            ("tanh(", "th", "func"),
+            ("!", "n!", "op"),
         ]
 
-        self.extra_keyboard_row = ft.Row(
-            controls=[self.make_key(c, l, t) for c, l, t in extra_keys],
+        self.extra_keyboard_col = ft.Column(
+            controls=[
+                ft.Row(controls=[self.make_key(c, l, t) for c, l, t in extra_keys_1], spacing=5),
+                ft.Row(controls=[self.make_key(c, l, t) for c, l, t in extra_keys_2], spacing=5),
+            ],
             spacing=5,
             visible=False,
         )
 
+        self.extra_toggle_text = ft.Text("Доп. f(x)", size=11, weight=ft.FontWeight.W_600)
+        self.extra_toggle_icon = ft.Icon(ft.Icons.EXPAND_MORE, size=16)
+
         def toggle_extra(e):
-            self.extra_keyboard_row.visible = not self.extra_keyboard_row.visible
-            self.extra_toggle_btn.icon = (
-                ft.Icons.EXPAND_LESS if self.extra_keyboard_row.visible else ft.Icons.EXPAND_MORE
+            self.extra_keyboard_col.visible = not self.extra_keyboard_col.visible
+            self.extra_toggle_icon.icon = (
+                ft.Icons.EXPAND_LESS if self.extra_keyboard_col.visible else ft.Icons.EXPAND_MORE
             )
-            self.extra_toggle_btn.content = (
-                "Скрыть f(x)" if self.extra_keyboard_row.visible else "Доп. f(x)"
+            self.extra_toggle_text.value = (
+                "Скрыть f(x)" if self.extra_keyboard_col.visible else "Доп. f(x)"
             )
             self.page.update()
 
         self.extra_toggle_btn = ft.TextButton(
-            content="Доп. f(x)",
-            icon=ft.Icons.EXPAND_MORE,
+            content=ft.Row(
+                controls=[
+                    self.extra_toggle_text,
+                    self.extra_toggle_icon,
+                ],
+                spacing=4,
+                tight=True,
+            ),
             style=ft.ButtonStyle(
                 padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-                text_style=ft.TextStyle(size=11, weight=ft.FontWeight.W_600),
             ),
             on_click=toggle_extra,
         )
@@ -367,16 +470,18 @@ class LimitApp:
                                     ft.Text("Клавиатура символов", size=12, weight=ft.FontWeight.BOLD),
                                 ],
                                 spacing=6,
+                                tight=True,
                             ),
                             self.extra_toggle_btn,
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
-                    self.extra_keyboard_row,
+                    self.extra_keyboard_col,
                     ft.Row(controls=[self.make_key(c, l, t) for c, l, t in row1_keys], spacing=5),
                     ft.Row(controls=[self.make_key(c, l, t) for c, l, t in row2_keys], spacing=5),
                     ft.Row(controls=[self.make_key(c, l, t) for c, l, t in row3_keys], spacing=5),
                     ft.Row(controls=[self.make_key(c, l, t) for c, l, t in row4_keys], spacing=5),
+                    ft.Row(controls=[self.make_key(c, l, t) for c, l, t in row5_keys], spacing=5),
                 ],
                 spacing=5,
             ),
@@ -386,12 +491,36 @@ class LimitApp:
             border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
         )
 
-        quick_points = [("0", "0"), ("oo", "+∞"), ("-oo", "-∞"), ("1", "1"), ("pi", "π"), ("e", "e")]
+        # Quick variable chips
+        var_chips = []
+        for v in ["x", "n", "t", "y"]:
+            chip = ft.Container(
+                content=ft.Text(v, size=12, weight=ft.FontWeight.BOLD, italic=True),
+                padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                border_radius=8,
+                border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
+                ink=True,
+                on_click=lambda e, var_val=v: self.select_variable(var_val),
+            )
+            var_chips.append(chip)
+
+        # Quick point chips
+        quick_points = [
+            ("0", "0"),
+            ("oo", "+∞"),
+            ("-oo", "-∞"),
+            ("1", "1"),
+            ("-1", "-1"),
+            ("pi", "π"),
+            ("pi/2", "π/2"),
+            ("e", "e"),
+        ]
         point_chips = []
         for val, label in quick_points:
             chip = ft.Container(
-                content=ft.Text(f"x₀ = {label}", size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_PRIMARY_CONTAINER),
-                padding=ft.Padding.symmetric(horizontal=10, vertical=5),
+                content=ft.Text(label, size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_PRIMARY_CONTAINER),
+                padding=ft.Padding.symmetric(horizontal=9, vertical=4),
                 bgcolor=ft.Colors.PRIMARY_CONTAINER,
                 border_radius=8,
                 border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
@@ -400,6 +529,7 @@ class LimitApp:
             )
             point_chips.append(chip)
 
+        # Primary Calculate Button with safe bounded tight layout
         calc_btn = ft.FilledButton(
             content=ft.Row(
                 controls=[
@@ -407,56 +537,94 @@ class LimitApp:
                     ft.Text("Рассчитать предел", weight=ft.FontWeight.BOLD, size=15),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
+                tight=True,
             ),
             style=ft.ButtonStyle(
                 bgcolor=ft.Colors.INDIGO_600,
                 color=ft.Colors.WHITE,
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=14,
+                padding=ft.Padding.symmetric(vertical=13),
             ),
+            width=float("inf"),
             on_click=self.on_calculate_click,
         )
 
         return ft.ListView(
             expand=True,
-            spacing=14,
+            spacing=12,
             controls=[
                 ft.Container(
                     content=ft.Column(
                         spacing=10,
                         controls=[
+                            # Header with compact title & action buttons
                             ft.Row(
                                 controls=[
-                                    ft.Text("Функция и переменная", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    ft.Text("Ввод функции", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
                                     ft.Row(
                                         controls=[
                                             ft.TextButton(
-                                                content="🎲 Пример",
-                                                style=ft.ButtonStyle(
-                                                    padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-                                                    text_style=ft.TextStyle(size=11, weight=ft.FontWeight.W_600),
+                                                content=ft.Row(
+                                                    [ft.Icon(ft.Icons.CASINO_OUTLINED, size=15), ft.Text("Пример", size=11)],
+                                                    spacing=4,
+                                                    tight=True,
                                                 ),
+                                                style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
                                                 on_click=self.load_random_example,
                                             ),
                                             ft.TextButton(
-                                                content="Очистить",
-                                                style=ft.ButtonStyle(
-                                                    padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-                                                    text_style=ft.TextStyle(size=11, weight=ft.FontWeight.W_600),
+                                                content=ft.Row(
+                                                    [ft.Icon(ft.Icons.CLEAR_ALL, size=15), ft.Text("Очистить", size=11)],
+                                                    spacing=4,
+                                                    tight=True,
                                                 ),
+                                                style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
                                                 on_click=self.clear_inputs,
                                             ),
                                         ],
                                         spacing=2,
+                                        tight=True,
                                     ),
                                 ],
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                             ),
+
+                            # Live Formula Preview Card
+                            ft.Container(
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Icon(ft.Icons.AUTO_GRAPH, size=16, color=ft.Colors.PRIMARY),
+                                        self.live_preview_text,
+                                    ],
+                                    spacing=8,
+                                    tight=True,
+                                ),
+                                padding=ft.Padding.symmetric(horizontal=12, vertical=8),
+                                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                                border_radius=10,
+                                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                            ),
+
                             ft.Row(controls=[self.expr_input, self.var_input], spacing=8),
+
+                            # Variable selector chips
+                            ft.Row(
+                                controls=[
+                                    ft.Text("Переменная:", size=11, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    *var_chips,
+                                ],
+                                spacing=6,
+                                tight=True,
+                            ),
+
                             keypad_container,
+
                             ft.Divider(height=1, thickness=0.5),
+
                             ft.Text("Параметры предела", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Row(controls=[self.point_input, self.dir_dropdown], spacing=8),
+
+                            # Point chips
                             ft.Row(
                                 controls=[
                                     ft.Text("x₀:", size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -465,6 +633,7 @@ class LimitApp:
                                 spacing=6,
                                 wrap=True,
                             ),
+
                             ft.Container(height=4),
                             calc_btn,
                         ],
@@ -479,11 +648,21 @@ class LimitApp:
         )
 
     def on_calculate_click(self, e):
-        expr_text = self.expr_input.value.strip() if self.expr_input.value else ""
-        if not expr_text:
+        raw_expr = self.expr_input.value.strip() if self.expr_input.value else ""
+        if not raw_expr:
             self.show_toast("Пожалуйста, введите функцию f(x)")
             return
 
+        # Check if user pasted a complete limit notation
+        parsed_full = engine.parse_full_limit(raw_expr)
+        if parsed_full:
+            self.expr_input.value = parsed_full["expr"]
+            self.var_input.value = parsed_full["var"]
+            self.point_input.value = parsed_full["point"]
+            self.dir_dropdown.value = parsed_full["direction"]
+            self.update_live_preview()
+
+        expr_text = self.expr_input.value.strip()
         var_text = self.var_input.value.strip() if self.var_input.value else "x"
         point_text = self.point_input.value.strip() if self.point_input.value else "0"
         dir_val = self.dir_dropdown.value or "+-"
@@ -500,8 +679,9 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.RED_400),
-                                        ft.Text("Не удалось вычислить", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_400),
-                                    ]
+                                        ft.Text("Не удалось вычислить предел", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_400),
+                                    ],
+                                    tight=True,
                                 ),
                                 ft.Text(res.get("error", "Проверьте синтаксис ввода.")),
                             ],
@@ -566,11 +746,12 @@ class LimitApp:
             ft.Container(
                 content=ft.Row(
                     controls=[
-                        ft.Text("= ", size=30, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
-                        ft.Text(ans_text, size=30, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
-                        ft.Text(f" ({numeric_text})" if numeric_text else "", size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.Text("= ", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                        ft.Text(ans_text, size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                        ft.Text(f" ({numeric_text})" if numeric_text else "", size=15, color=ft.Colors.ON_SURFACE_VARIANT),
                     ],
                     alignment=ft.MainAxisAlignment.START,
+                    tight=True,
                 ),
                 padding=ft.Padding.symmetric(horizontal=12, vertical=8),
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
@@ -588,6 +769,7 @@ class LimitApp:
                             ft.Text(f"Неопределенность {res['indeterminacy']}", weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_400, size=13),
                         ],
                         spacing=6,
+                        tight=True,
                     ),
                     bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
                     padding=ft.Padding.symmetric(horizontal=10, vertical=4),
@@ -613,6 +795,7 @@ class LimitApp:
                         ),
                     ],
                     spacing=8,
+                    tight=True,
                 )
             )
 
@@ -646,6 +829,7 @@ class LimitApp:
             content=ft.Row(
                 controls=[ft.Icon(ft.Icons.COPY, size=16), ft.Text("Скопировать решение", size=13)],
                 spacing=6,
+                tight=True,
             ),
             on_click=copy_result,
         )
@@ -655,6 +839,7 @@ class LimitApp:
                 controls=[fav_btn, copy_btn],
                 alignment=ft.MainAxisAlignment.END,
                 spacing=6,
+                tight=True,
             )
         )
 
@@ -697,6 +882,7 @@ class LimitApp:
                                     ft.Text("Подробный ход решения", weight=ft.FontWeight.BOLD, size=15),
                                 ],
                                 spacing=8,
+                                tight=True,
                             ),
                             ft.Divider(height=1, thickness=0.5),
                             ft.Column(controls=step_controls, spacing=8),
@@ -744,6 +930,7 @@ class LimitApp:
                                     ft.Text("Численное приближение к точке", weight=ft.FontWeight.BOLD, size=15),
                                 ],
                                 spacing=8,
+                                tight=True,
                             ),
                             ft.Text("Демонстрация сходимости функции:", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Container(content=data_table, alignment=ft.Alignment.CENTER),
@@ -760,6 +947,7 @@ class LimitApp:
         self.var_input.value = p["var"]
         self.point_input.value = p["point"]
         self.dir_dropdown.value = p["dir"]
+        self.update_live_preview()
         self.nav_bar.selected_index = 0
         self.content_container.content = self.calc_view
         self.page.update()
@@ -818,11 +1006,13 @@ class LimitApp:
                                                 content=ft.Row(
                                                     controls=[ft.Icon(ft.Icons.PLAY_ARROW, size=16), ft.Text("Решить в калькуляторе", size=12)],
                                                     spacing=4,
+                                                    tight=True,
                                                 ),
                                                 on_click=lambda e, pr=p: self.load_preset(pr),
                                             )
                                         ],
                                         alignment=ft.MainAxisAlignment.END,
+                                        tight=True,
                                     ),
                                 ],
                                 spacing=6,
@@ -876,11 +1066,13 @@ class LimitApp:
                                             content=ft.Row(
                                                 controls=[ft.Icon(ft.Icons.PLAY_ARROW, size=16), ft.Text("Решить в калькуляторе", size=12)],
                                                 spacing=4,
+                                                tight=True,
                                             ),
                                             on_click=lambda e, pr=p: self.load_preset(pr),
                                         )
                                     ],
                                     alignment=ft.MainAxisAlignment.END,
+                                    tight=True,
                                 ),
                             ],
                             spacing=6,
@@ -977,12 +1169,16 @@ class LimitApp:
             return ft.Container(
                 content=ft.Column(
                     controls=[
-                        ft.Image(
-                            src=ICON_PNG,
-                            width=64,
-                            height=64,
-                            fit=ft.BoxFit.CONTAIN,
-                            opacity=0.75,
+                        ft.Container(
+                            content=ft.Image(
+                                src=ICON_PNG,
+                                width=48,
+                                height=48,
+                                fit=ft.BoxFit.CONTAIN,
+                            ),
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                            border_radius=12,
+                            padding=8,
                         )
                         if os.path.exists(ICON_PNG)
                         else ft.Icon(ft.Icons.HISTORY, size=64, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -1014,6 +1210,7 @@ class LimitApp:
             content=ft.Row(
                 controls=[ft.Icon(ft.Icons.DELETE_SWEEP, size=16), ft.Text("Очистить", size=12)],
                 spacing=4,
+                tight=True,
             ),
             on_click=clear_history,
         )
@@ -1036,6 +1233,7 @@ class LimitApp:
                             ft.Text(f"Избранное ({fav_count})", size=12, weight=ft.FontWeight.W_600),
                         ],
                         spacing=4,
+                        tight=True,
                     ),
                     padding=ft.Padding.symmetric(horizontal=12, vertical=6),
                     bgcolor=ft.Colors.PRIMARY_CONTAINER if self.history_filter == "fav" else ft.Colors.SURFACE_CONTAINER_HIGH,
@@ -1081,6 +1279,7 @@ class LimitApp:
                 self.var_input.value = it["var"]
                 self.point_input.value = it["point"]
                 self.dir_dropdown.value = it["dir"]
+                self.update_live_preview()
                 self.nav_bar.selected_index = 0
                 self.content_container.content = self.calc_view
                 self.page.update()
@@ -1122,6 +1321,7 @@ class LimitApp:
                                     fav_icon,
                                 ],
                                 spacing=4,
+                                tight=True,
                             ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -1146,13 +1346,18 @@ class LimitApp:
             ft.Container(
                 content=ft.Image(
                     src=ICON_PNG,
-                    width=68,
-                    height=68,
+                    width=54,
+                    height=54,
                     fit=ft.BoxFit.CONTAIN,
                 ),
-                width=68,
-                height=68,
+                width=64,
+                height=64,
+                bgcolor=ft.Colors.INDIGO_950,
+                border_radius=14,
+                padding=5,
+                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
                 shadow=ft.BoxShadow(blur_radius=16, color=ft.Colors.with_opacity(0.35, ft.Colors.BLACK)),
+                alignment=ft.Alignment.CENTER,
             )
             if os.path.exists(ICON_PNG)
             else ft.CircleAvatar(
@@ -1186,14 +1391,16 @@ class LimitApp:
                                                         ),
                                                     ],
                                                     spacing=6,
+                                                    tight=True,
                                                 ),
                                                 ft.Text("Математический калькулятор пределов", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
                                                 ft.Row(
                                                     controls=[
                                                         ft.Icon(ft.Icons.CHECK_CIRCLE, size=14, color=ft.Colors.GREEN_400),
-                                                        ft.Text("Версия 1.2 • Полный offline режим", size=11, color=ft.Colors.GREEN_400),
+                                                        ft.Text("Версия 1.3 • Полный offline режим", size=11, color=ft.Colors.GREEN_400),
                                                     ],
                                                     spacing=4,
+                                                    tight=True,
                                                 ),
                                             ],
                                             spacing=2,
@@ -1203,8 +1410,8 @@ class LimitApp:
                                 ),
                                 ft.Divider(height=1, thickness=0.5),
                                 ft.Text(
-                                    "LimitApp — высокоточный аналитический калькулятор математических пределов с пошаговым решением, "
-                                    "анализом неопределенностей, интерактивным справочником и функцией избранных вычислений.",
+                                    "LimitApp — аналитический мобильный калькулятор математических пределов с пошаговым решением, "
+                                    "раскрытием всех 7 типов неопределенностей, интерактивным справочником и поддержкой синтаксиса LaTeX.",
                                     size=12,
                                 ),
                             ],
@@ -1223,13 +1430,17 @@ class LimitApp:
                                     ft.Container(
                                         content=ft.Image(
                                             src=ICON_PNG,
-                                            width=48,
-                                            height=48,
+                                            width=38,
+                                            height=38,
                                             fit=ft.BoxFit.CONTAIN,
                                         ),
                                         width=48,
                                         height=48,
-                                        shadow=ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(0.2, ft.Colors.BLACK)),
+                                        bgcolor=ft.Colors.INDIGO_950,
+                                        border_radius=12,
+                                        padding=5,
+                                        border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
+                                        alignment=ft.Alignment.CENTER,
                                     )
                                     if os.path.exists(ICON_PNG)
                                     else ft.CircleAvatar(
@@ -1251,6 +1462,7 @@ class LimitApp:
                                                 ft.Text("Автор и создатель проекта", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
                                             ],
                                             spacing=6,
+                                            tight=True,
                                         ),
                                     ],
                                     spacing=2,
@@ -1270,11 +1482,17 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                                        ft.Text("Ключевые возможности", weight=ft.FontWeight.BOLD, size=15),
+                                        ft.Text("Ключевые возможности v1.3", weight=ft.FontWeight.BOLD, size=15),
                                     ],
                                     spacing=8,
+                                    tight=True,
                                 ),
                                 ft.Divider(height=1, thickness=0.5),
+                                ft.ListTile(
+                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
+                                    title=ft.Text("Решение любого существующего предела", size=13),
+                                    subtitle=ft.Text("Поддержка LaTeX, тригонометрических степеней sin²(x), факториалов n!, корней, последовательностей.", size=11),
+                                ),
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
                                     title=ft.Text("Двусторонние и односторонние пределы", size=13),
@@ -1283,7 +1501,7 @@ class LimitApp:
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
                                     title=ft.Text("Раскрытие 7 типов неопределенностей", size=13),
-                                    subtitle=ft.Text("Автоопределение 0/0, ∞/∞, 0·∞, ∞-∞, 1^∞, 0^0, ∞^0 (Лопиталь, Тейлор, эквивалентности).", size=11),
+                                    subtitle=ft.Text("0/0, ∞/∞, 0·∞, ∞-∞, 1^∞, 0^0, ∞^0 (Правило Лопиталя, Тейлор, эквивалентности).", size=11),
                                 ),
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
@@ -1297,8 +1515,8 @@ class LimitApp:
                                 ),
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("🎲 Генератор случайных примеров", size=13),
-                                    subtitle=ft.Text("Быстрая проверка возможностей и изучение типовых задач с пределами.", size=11),
+                                    title=ft.Text("🎨 Идеальная Android Adaptive Icon", size=13),
+                                    subtitle=ft.Text("Чётко и ровно вырезанная иконка без черных полей под любой лаунчер (Pixel, Samsung, Xiaomi).", size=11),
                                 ),
                             ],
                             spacing=4,
@@ -1318,17 +1536,18 @@ class LimitApp:
                                         ft.Text("Стек технологий", weight=ft.FontWeight.BOLD, size=15),
                                     ],
                                     spacing=8,
+                                    tight=True,
                                 ),
                                 ft.Divider(height=1, thickness=0.5),
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.TERMINAL, size=22),
                                     title=ft.Text("Python 3 & SymPy", weight=ft.FontWeight.W_600, size=13),
-                                    subtitle=ft.Text("Символьное дифференцирование, разложения в ряды Тейлора и аналитические пределы.", size=11),
+                                    subtitle=ft.Text("Символьное дифференцирование, ряды Тейлора и аналитические пределы.", size=11),
                                 ),
                                 ft.ListTile(
                                     leading=ft.Icon(ft.Icons.PHONE_ANDROID, size=22),
                                     title=ft.Text("Flet & Flutter Engine", weight=ft.FontWeight.W_600, size=13),
-                                    subtitle=ft.Text("Кроссплатформенный Material Design 3 мобильный интерфейс.", size=11),
+                                    subtitle=ft.Text("Кроссплатформенный Material Design 3 интерфейс.", size=11),
                                 ),
                             ],
                             spacing=6,

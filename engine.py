@@ -1,9 +1,11 @@
 """
 LimitApp Math Engine - SymPy based Limit Calculation & Step Analysis
 Creator: Нарницкий Роман (Syrok)
+Enhanced with full LaTeX parsing, extended calculus functions, smart bracket & power normalizer.
 """
 
 import math
+import re
 from typing import Dict, Any, List, Optional
 import sympy as sp
 from sympy.parsing.sympy_parser import (
@@ -19,6 +21,7 @@ TRANSFORMS = standard_transformations + (
 )
 
 LOCAL_MATH_DICT = {
+    # Constants
     "oo": sp.oo,
     "inf": sp.oo,
     "infinity": sp.oo,
@@ -26,13 +29,23 @@ LOCAL_MATH_DICT = {
     "PI": sp.pi,
     "e": sp.E,
     "E": sp.E,
+    "gamma": sp.EulerGamma,
+    "golden_ratio": sp.GoldenRatio,
+    # Roots & Power
     "sqrt": sp.sqrt,
+    "cbrt": sp.cbrt,
+    "root": sp.root,
+    # Trigonometric
     "sin": sp.sin,
     "cos": sp.cos,
     "tan": sp.tan,
     "tg": sp.tan,
     "cot": sp.cot,
     "ctg": sp.cot,
+    "sec": sp.sec,
+    "csc": sp.csc,
+    "sinc": sp.sinc,
+    # Inverse Trigonometric
     "asin": sp.asin,
     "arcsin": sp.asin,
     "acos": sp.acos,
@@ -40,17 +53,91 @@ LOCAL_MATH_DICT = {
     "atan": sp.atan,
     "arctg": sp.atan,
     "arctan": sp.atan,
-    "ln": sp.log,
-    "log": sp.log,
-    "exp": sp.exp,
+    "acot": sp.acot,
+    "arcctg": sp.acot,
+    "arccot": sp.acot,
+    # Hyperbolic
     "sinh": sp.sinh,
     "sh": sp.sinh,
     "cosh": sp.cosh,
     "ch": sp.cosh,
     "tanh": sp.tanh,
     "th": sp.tanh,
+    "coth": sp.coth,
+    "cth": sp.coth,
+    "asinh": sp.asinh,
+    "acosh": sp.acosh,
+    "atanh": sp.atanh,
+    "acoth": sp.acoth,
+    # Exponential & Logarithmic
+    "ln": sp.log,
+    "log": sp.log,
+    "log10": lambda x: sp.log(x, 10),
+    "log2": lambda x: sp.log(x, 2),
+    "lg": lambda x: sp.log(x, 10),
+    "exp": sp.exp,
+    # Special & Discrete
     "abs": sp.Abs,
+    "Abs": sp.Abs,
+    "sign": sp.sign,
+    "sgn": sp.sign,
+    "factorial": sp.factorial,
+    "gamma_fn": sp.gamma,
+    "binomial": sp.binomial,
+    "floor": sp.floor,
+    "ceil": sp.ceiling,
 }
+
+
+def clean_latex(s: str) -> str:
+    """Converts LaTeX limit & function syntax into readable math expressions."""
+    if not s or "\\" not in s:
+        return s
+    # Clean formatting
+    s = s.replace(r"\left", "").replace(r"\right", "")
+    s = s.replace(r"\cdot", "*").replace(r"\times", "*")
+    s = s.replace(r"\infty", "oo").replace(r"\pi", "pi")
+
+    # Replace nested \frac{a}{b} -> ((a)/(b))
+    while r"\frac" in s:
+        s_new = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"((\1)/(\2))", s)
+        if s_new == s:
+            break
+        s = s_new
+
+    # \sqrt[n]{x} -> root(x, n)
+    s = re.sub(r"\\sqrt\[([^\]]+)\]\{([^{}]+)\}", r"root(\2, \1)", s)
+    # \sqrt{x} -> sqrt(x)
+    s = re.sub(r"\\sqrt\{([^{}]+)\}", r"sqrt(\1)", s)
+
+    # Standard LaTeX function names without backslash
+    s = re.sub(
+        r"\\(sin|cos|tan|cot|sec|csc|asin|acos|atan|acot|sinh|cosh|tanh|coth|ln|log|exp|arcsin|arccos|arctan|arccot)",
+        r"\1",
+        s,
+    )
+    return s
+
+
+def fix_trig_powers(s: str) -> str:
+    """
+    Transforms notation like sin^2(x) -> (sin(x))^2 and cos^3 x -> (cos(x))^3.
+    """
+    funcs = (
+        r"sin|cos|tan|tg|cot|ctg|sec|csc|asin|arcsin|acos|arccos|atan|arctg|"
+        r"acot|arcctg|sinh|sh|cosh|ch|tanh|th|coth|cth|ln|lg|log|exp"
+    )
+    pattern = rf"\b({funcs})\^(\d+)\s*(\([^\)]+\)|[a-zA-Z0-9]+)"
+
+    def repl(m):
+        fn = m.group(1)
+        p = m.group(2)
+        arg = m.group(3)
+        if not arg.startswith("("):
+            arg = f"({arg})"
+        return f"({fn}{arg})^{p}"
+
+    return re.sub(pattern, repl, s)
 
 
 def clean_input(expr_str: str) -> str:
@@ -58,15 +145,96 @@ def clean_input(expr_str: str) -> str:
     if not expr_str:
         return ""
     s = expr_str.strip()
+
+    # 1. LaTeX cleanup
+    s = clean_latex(s)
+
+    # 2. Dashes and Unicode symbols
     s = s.replace("—", "-").replace("–", "-").replace("−", "-")
-    s = s.replace("×", "*").replace("÷", "/")
+    s = s.replace("×", "*").replace("·", "*").replace("÷", "/")
     s = s.replace("√", "sqrt")
     s = s.replace("π", "pi")
     s = s.replace("∞", "oo")
-    s = s.replace("tg(", "tan(").replace("ctg(", "cot(")
-    s = s.replace("arctg(", "atan(").replace("arcctg(", "acot(")
-    s = s.replace("sh(", "sinh(").replace("ch(", "cosh(").replace("th(", "tanh(")
+
+    # 3. Square brackets and curly braces -> parentheses
+    s = s.replace("[", "(").replace("]", ")")
+    s = s.replace("{", "(").replace("}", ")")
+
+    # 4. Absolute values: |expr| -> abs(expr)
+    s = re.sub(r"\|([^|]+)\|", r"abs(\1)", s)
+
+    # 5. Decimal comma -> dot: e.g. 0,5 -> 0.5
+    s = re.sub(r"(?<=\d),(?=\d)", ".", s)
+
+    # 6. Russian mathematical notation
+    s = re.sub(r"\btg\(", "tan(", s)
+    s = re.sub(r"\bctg\(", "cot(", s)
+    s = re.sub(r"\barctg\(", "atan(", s)
+    s = re.sub(r"\barcctg\(", "acot(", s)
+    s = re.sub(r"\barccot\(", "acot(", s)
+    s = re.sub(r"\bsh\(", "sinh(", s)
+    s = re.sub(r"\bch\(", "cosh(", s)
+    s = re.sub(r"\bth\(", "tanh(", s)
+    s = re.sub(r"\bcth\(", "coth(", s)
+    s = re.sub(r"\blg\(", "log10(", s)
+
+    # 7. Trigonometric powers: sin^2(x) -> (sin(x))^2
+    s = fix_trig_powers(s)
+
+    # 8. Euler power: e^x or e^(...)
+    s = re.sub(r"\be\^(\([^\)]+\)|[a-zA-Z0-9]+)", r"exp(\1)", s)
+
+    # 9. Factorial notation: n! or (n+1)!
+    s = re.sub(r"(\([^\)]+\)|[a-zA-Z0-9]+)!", r"factorial(\1)", s)
+
     return s
+
+
+def parse_full_limit(text: str) -> Optional[Dict[str, str]]:
+    """
+    Detects if the user pasted a complete limit notation like:
+    - lim (x -> 0) sin(x)/x
+    - lim x->0+ 1/x
+    - \\lim_{x \\to 0} \\frac{\\sin x}{x}
+    - lim_{n -> oo} (1+1/n)^n
+    Returns dict with expr, var, point, direction, or None.
+    """
+    if not text:
+        return None
+    s = text.strip()
+    m = re.search(
+        r"\\?lim(?:_\{|\s*\(\s*|\s+)?([a-zA-Z])\s*(?:\\to|->|→)\s*([^)}\]\s]+(?:\s*[\+\-])?)(?:\}|\)|\s*\])?\s*[:\=]?\s*(.+)",
+        s,
+        re.IGNORECASE,
+    )
+    if not m:
+        return None
+
+    var = m.group(1).strip()
+    raw_pt = m.group(2).strip()
+    expr = m.group(3).strip()
+
+    if expr.startswith("}") or expr.startswith(")"):
+        expr = expr[1:].strip()
+    if (expr.startswith("(") and expr.endswith(")")) or (expr.startswith("[") and expr.endswith("]")):
+        expr = expr[1:-1].strip()
+
+    direction = "+-"
+    if raw_pt.endswith("+") or raw_pt.endswith("^+"):
+        direction = "+"
+        point = raw_pt.rstrip("^+")
+    elif raw_pt.endswith("-") or raw_pt.endswith("^-"):
+        direction = "-"
+        point = raw_pt.rstrip("^-")
+    else:
+        point = raw_pt
+
+    return {
+        "expr": expr,
+        "var": var,
+        "point": point,
+        "direction": direction,
+    }
 
 
 def parse_math(expr_str: str, var_symbol: sp.Symbol) -> sp.Expr:
@@ -78,7 +246,7 @@ def parse_math(expr_str: str, var_symbol: sp.Symbol) -> sp.Expr:
 
 
 def format_sym(val: Any) -> str:
-    """Formats a SymPy value nicely into unicode text."""
+    """Formats a SymPy value nicely into unicode mathematical text."""
     if val == sp.oo or str(val) == "oo":
         return "+∞"
     if val == -sp.oo or str(val) == "-oo":
@@ -91,11 +259,11 @@ def format_sym(val: Any) -> str:
         return "e"
     if val == sp.pi:
         return "π"
-    
-    # Check if simple fraction or expression
+
     s = str(val)
     s = s.replace("**", "^").replace("*", "·")
     s = s.replace("pi", "π").replace("oo", "∞")
+    s = s.replace("zoo", "∞")
     return s
 
 
@@ -215,7 +383,7 @@ def generate_steps(
             steps.append({
                 "title": "Шаг 3. Сведение ко второму замечательному пределу",
                 "desc": (
-                    "Для неопределенности [1^∞] используется формула:\n"
+                    "Для раскрытия неопределенности [1^∞] применяется формула:\n"
                     "lim [u(x)]^v(x) = exp( lim [u(x) - 1] · v(x) )\n"
                     f"Результат вычисления экспоненты дает: {format_sym(result)}"
                 ),
@@ -235,7 +403,7 @@ def generate_steps(
         # Continuous at point
         steps.append({
             "title": "Шаг 2. Непрерывность в точке",
-            "desc": f"Функция определена и непрерывна в окрестности {point_str}. Значение предела совпадает со значением функции: {format_sym(result)}.",
+            "desc": f"Функция определена и непрерывна в окрестности точки {point_str}. Значение предела совпадает со значением функции: {format_sym(result)}.",
         })
 
     # One-sided comparison
@@ -248,7 +416,7 @@ def generate_steps(
             if lim_left == lim_right:
                 steps.append({
                     "title": "Шаг 4. Проверка односторонних пределов",
-                    "desc": f"Левосторонний предел lim ({var.name}→{point_str}⁻) = {left_str}\nПравосторонний предел lim ({var.name}→{point_str}⁺) = {right_str}\nОба предела совпадают, значит двусторонний предел существует.",
+                    "desc": f"Левосторонний предел lim ({var.name}→{point_str}⁻) = {left_str}\nПравосторонний предел lim ({var.name}→{point_str}⁺) = {right_str}\nОба предела совпадают, следовательно двусторонний предел существует.",
                 })
             else:
                 steps.append({
@@ -318,7 +486,15 @@ def solve_limit(
     direction: '+-' (both), '+' (right), '-' (left)
     """
     try:
-        var_name = clean_input(var_str) or "x"
+        # If full limit was passed in expr_str, auto-extract components
+        full_parsed = parse_full_limit(expr_str)
+        if full_parsed:
+            expr_str = full_parsed["expr"]
+            var_str = full_parsed["var"] or var_str
+            point_str = full_parsed["point"] or point_str
+            direction = full_parsed["direction"] or direction
+
+        var_name = clean_input(var_str).strip() or "x"
         var = sp.Symbol(var_name)
 
         expr = parse_math(expr_str, var)
@@ -381,7 +557,15 @@ def solve_limit(
         }
 
     except Exception as e:
+        err_msg = str(e)
+        if "mismatched parentheses" in err_msg.lower() or "unexpected EOF" in err_msg.lower():
+            user_error = "Проверьте парность скобок (возможно, не закрыта открывающая скобка)."
+        elif "invalid syntax" in err_msg.lower():
+            user_error = "Синтаксическая ошибка. Проверьте правильность расстановки знаков операций (*, +, -, /)."
+        else:
+            user_error = f"Ошибка вычисления: {err_msg}"
+
         return {
             "success": False,
-            "error": f"Ошибка вычисления: {str(e)}",
+            "error": user_error,
         }
