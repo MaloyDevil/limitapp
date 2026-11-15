@@ -65,11 +65,11 @@ class LimitApp:
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
 
-        # Services in overlay
+        # Register services in page.services (fixes Unknown control: FilePicker)
         self.clipboard = ft.Clipboard()
         self.file_picker = ft.FilePicker(on_result=self.on_photo_file_picked)
-        self.page.overlay.append(self.clipboard)
-        self.page.overlay.append(self.file_picker)
+        self.page.services.append(self.clipboard)
+        self.page.services.append(self.file_picker)
 
         # Live Math preview label
         self.live_preview_text = ft.Text(
@@ -718,7 +718,12 @@ class LimitApp:
                                 bgcolor=ft.Colors.INDIGO_600,
                                 padding=ft.Padding.symmetric(vertical=12, horizontal=8),
                             ),
-                            on_click=pick_from_files,
+                            action=ft.PickFiles(
+                                self.file_picker,
+                                dialog_title="Выберите фото примера",
+                                allowed_extensions=["jpg", "jpeg", "png", "webp"],
+                            ),
+                            on_click=lambda ev: self.page.pop_dialog(),
                         ),
                         ft.Divider(height=1, thickness=0.5),
                         ft.Text("Или выберите тестовый рукописный образец:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -750,10 +755,8 @@ class LimitApp:
         if not e.files or len(e.files) == 0:
             return
 
-        file_path = e.files[0].path
-        if not file_path or not os.path.exists(file_path):
-            self.show_toast("Не удалось открыть выбранный файл")
-            return
+        file_obj = e.files[0]
+        file_path = file_obj.path
 
         if not (self.gemini_api_key or "").strip():
             self.show_toast("Для распознавания фото задайте бесплатный ключ Gemini API")
@@ -764,11 +767,22 @@ class LimitApp:
 
         def ocr_worker():
             try:
-                with open(file_path, "rb") as f:
-                    img_bytes = f.read()
+                img_bytes = None
+                mime = "image/jpeg"
 
-                ext = os.path.splitext(file_path)[1].lower().replace(".", "")
-                mime = "image/png" if ext == "png" else "image/jpeg"
+                if file_path and os.path.exists(file_path):
+                    with open(file_path, "rb") as f:
+                        img_bytes = f.read()
+                    ext = os.path.splitext(file_path)[1].lower().replace(".", "")
+                    mime = "image/png" if ext == "png" else "image/jpeg"
+                elif getattr(file_obj, "bytes", None):
+                    img_bytes = file_obj.bytes
+                    fname = getattr(file_obj, "name", "")
+                    mime = "image/png" if fname.lower().endswith(".png") else "image/jpeg"
+
+                if not img_bytes:
+                    self.show_toast("Не удалось прочитать изображение")
+                    return
 
                 res = gemini_solver.recognize_limit_from_image(
                     image_bytes=img_bytes,
