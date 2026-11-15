@@ -37,11 +37,15 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Accept Android SDK licenses
+        run: |
+          yes | sdkmanager --licenses || true
+
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flet-build flet
+          pip install flet flet-cli
 
       - name: Prepare Assets & App Icons
         run: |
@@ -52,13 +56,23 @@ jobs:
 
       - name: Build Android APK via Flet
         run: |
-          python -m flet build apk --project limitapp --org com.syrok.limitapp --build-version 1.6.0 --build-number 160 || flutter build apk --release || true
+          flet build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --build-version 1.6.0 --build-number 160 --yes -v || python -m flet.cli build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --build-version 1.6.0 --build-number 160 --yes -v
 
       - name: Search and Collect Generated APKs
         run: |
           mkdir -p build/apk/
           find . -type f -name "*.apk" -exec cp {} build/apk/ \;
           ls -la build/apk/ || true
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: limitapp-release-apk
+          path: |
+            build/apk/*.apk
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/release/*.apk
+          if-no-files-found: warn
 
       - name: Publish Official GitHub Release
         uses: softprops/action-gh-release@v2
@@ -95,6 +109,8 @@ jobs:
                - Копирование чистого LaTeX-кода формулы и пошагового решения для курсовых, дипломов и LaTeX-документов.
 
             5. **🎨 Исправление всех багов интерфейса**:
+               - Полная темная палитра для всех вкладок (Справочник, История, Лаборатория, Репетитор, Калькулятор).
+               - Устранены любые белые подложки при системной светлой теме на Android.
                - Исправлено копирование в буфер обмена (`ft.Clipboard`).
                - Оптимизированы кнопки действий (нет вылезания текста за границы на экранах любой ширины).
                - Символ $\infty$ на основной клавиатуре, увеличенные клавиши 42px.

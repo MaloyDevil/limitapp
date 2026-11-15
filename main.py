@@ -62,42 +62,65 @@ class LimitApp:
             except Exception:
                 pass
 
+        dark_color_scheme = ft.ColorScheme(
+            primary=ft.Colors.INDIGO_400,
+            on_primary=ft.Colors.BLACK,
+            primary_container=ft.Colors.INDIGO_900,
+            on_primary_container=ft.Colors.INDIGO_100,
+            secondary=ft.Colors.CYAN_400,
+            on_secondary=ft.Colors.BLACK,
+            surface="#111827",
+            on_surface="#F3F4F6",
+            surface_container="#1E293B",
+            surface_container_low="#161F2E",
+            surface_container_lowest="#0B0F17",
+            surface_container_high="#283548",
+            surface_container_highest="#334155",
+            on_surface_variant="#94A3B8",
+            outline="#475569",
+            outline_variant="#334155",
+        )
+
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
-        self.page.bgcolor = ft.Colors.SURFACE_CONTAINER_LOWEST
+        self.page.bgcolor = "#0B0F17"
 
         self.page.theme = ft.Theme(
-            color_scheme_seed=ft.Colors.INDIGO,
+            color_scheme=dark_color_scheme,
             visual_density=ft.VisualDensity.COMPACT,
             use_material3=True,
-            scaffold_bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
-            card_theme=ft.CardTheme(color=ft.Colors.SURFACE_CONTAINER_LOW),
+            scaffold_bgcolor="#0B0F17",
+            card_bgcolor="#161F2E",
+            canvas_color="#0B0F17",
+            card_theme=ft.CardTheme(color="#161F2E"),
             expansion_tile_theme=ft.ExpansionTileTheme(
-                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                collapsed_bgcolor=ft.Colors.SURFACE_CONTAINER,
-                text_color=ft.Colors.ON_SURFACE,
-                icon_color=ft.Colors.INDIGO,
-            ),
-            data_table_theme=ft.DataTableTheme(
-                heading_row_color=ft.Colors.SURFACE_CONTAINER_HIGH,
-                data_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
-            ),
-        )
-        self.page.dark_theme = ft.Theme(
-            color_scheme_seed=ft.Colors.INDIGO,
-            visual_density=ft.VisualDensity.COMPACT,
-            use_material3=True,
-            scaffold_bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
-            card_theme=ft.CardTheme(color=ft.Colors.SURFACE_CONTAINER_LOW),
-            expansion_tile_theme=ft.ExpansionTileTheme(
-                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                collapsed_bgcolor=ft.Colors.SURFACE_CONTAINER,
+                bgcolor="#1E293B",
+                collapsed_bgcolor="#1E293B",
                 text_color=ft.Colors.ON_SURFACE,
                 icon_color=ft.Colors.INDIGO_ACCENT,
             ),
             data_table_theme=ft.DataTableTheme(
-                heading_row_color=ft.Colors.SURFACE_CONTAINER_HIGH,
-                data_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
+                heading_row_color="#283548",
+                data_row_color="#161F2E",
+            ),
+        )
+        self.page.dark_theme = ft.Theme(
+            color_scheme=dark_color_scheme,
+            visual_density=ft.VisualDensity.COMPACT,
+            use_material3=True,
+            scaffold_bgcolor="#0B0F17",
+            card_bgcolor="#161F2E",
+            canvas_color="#0B0F17",
+            card_theme=ft.CardTheme(color="#161F2E"),
+            expansion_tile_theme=ft.ExpansionTileTheme(
+                bgcolor="#1E293B",
+                collapsed_bgcolor="#1E293B",
+                text_color=ft.Colors.ON_SURFACE,
+                icon_color=ft.Colors.INDIGO_ACCENT,
+            ),
+            data_table_theme=ft.DataTableTheme(
+                heading_row_color="#283548",
+                data_row_color="#161F2E",
             ),
         )
 
@@ -209,11 +232,13 @@ class LimitApp:
             content=self.calc_view,
             expand=True,
             padding=ft.Padding.symmetric(horizontal=12, vertical=10),
+            bgcolor="#0B0F17",
         )
 
         # Mobile Bottom Navigation Bar (5 distinct tabs)
         self.nav_bar = ft.NavigationBar(
             selected_index=0,
+            bgcolor="#111827",
             on_change=self.on_nav_change,
             destinations=[
                 ft.NavigationBarDestination(
@@ -2776,10 +2801,14 @@ class LimitApp:
             )
         )
 
-        return ft.ListView(
+        return ft.Container(
+            content=ft.ListView(
+                expand=True,
+                spacing=10,
+                controls=items,
+            ),
+            bgcolor="#0B0F17",
             expand=True,
-            spacing=10,
-            controls=items,
         )
 
     # -------------------------------------------------------------
@@ -3040,10 +3069,14 @@ class LimitApp:
         )
         history_items.append(about_card)
 
-        return ft.ListView(
+        return ft.Container(
+            content=ft.ListView(
+                expand=True,
+                spacing=10,
+                controls=history_items,
+            ),
+            bgcolor="#0B0F17",
             expand=True,
-            spacing=10,
-            controls=history_items,
         )
 
 
