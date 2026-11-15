@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор и умный интерактивный репетитор по математическому анализу
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.6.0 (AI Tutor, Visual Epsilon-Delta Explorer & Photo OCR Release)
+Версия: 1.6.1 (UI Overhaul & Ergonomics, AI Tutor, Visual Epsilon-Delta Explorer & Photo OCR Release)
 """
 
 import sys
@@ -65,62 +65,62 @@ class LimitApp:
         dark_color_scheme = ft.ColorScheme(
             primary=ft.Colors.INDIGO_400,
             on_primary=ft.Colors.BLACK,
-            primary_container=ft.Colors.INDIGO_900,
-            on_primary_container=ft.Colors.INDIGO_100,
+            primary_container="#312E81",
+            on_primary_container="#E0E7FF",
             secondary=ft.Colors.CYAN_400,
             on_secondary=ft.Colors.BLACK,
-            surface="#111827",
-            on_surface="#F3F4F6",
-            surface_container="#1E293B",
-            surface_container_low="#161F2E",
-            surface_container_lowest="#0B0F17",
-            surface_container_high="#283548",
-            surface_container_highest="#334155",
+            surface="#121826",
+            on_surface="#F8FAFC",
+            surface_container="#182234",
+            surface_container_low="#121826",
+            surface_container_lowest="#090D16",
+            surface_container_high="#1E293B",
+            surface_container_highest="#26334D",
             on_surface_variant="#94A3B8",
-            outline="#475569",
-            outline_variant="#334155",
+            outline="#334155",
+            outline_variant="#1E293B",
         )
 
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
-        self.page.bgcolor = "#0B0F17"
+        self.page.bgcolor = "#090D16"
 
         self.page.theme = ft.Theme(
             color_scheme=dark_color_scheme,
             visual_density=ft.VisualDensity.COMPACT,
             use_material3=True,
-            scaffold_bgcolor="#0B0F17",
-            card_bgcolor="#161F2E",
-            canvas_color="#0B0F17",
-            card_theme=ft.CardTheme(color="#161F2E"),
+            scaffold_bgcolor="#090D16",
+            card_bgcolor="#121826",
+            canvas_color="#090D16",
+            card_theme=ft.CardTheme(color="#121826", elevation=0),
             expansion_tile_theme=ft.ExpansionTileTheme(
-                bgcolor="#1E293B",
-                collapsed_bgcolor="#1E293B",
-                text_color=ft.Colors.ON_SURFACE,
+                bgcolor="#182234",
+                collapsed_bgcolor="#182234",
+                text_color="#F8FAFC",
                 icon_color=ft.Colors.INDIGO_ACCENT,
             ),
             data_table_theme=ft.DataTableTheme(
-                heading_row_color="#283548",
-                data_row_color="#161F2E",
+                heading_row_color="#1E293B",
+                data_row_color="#121826",
             ),
         )
         self.page.dark_theme = ft.Theme(
             color_scheme=dark_color_scheme,
             visual_density=ft.VisualDensity.COMPACT,
             use_material3=True,
-            scaffold_bgcolor="#0B0F17",
-            card_bgcolor="#161F2E",
-            canvas_color="#0B0F17",
-            card_theme=ft.CardTheme(color="#161F2E"),
+            scaffold_bgcolor="#090D16",
+            card_bgcolor="#121826",
+            canvas_color="#090D16",
+            card_theme=ft.CardTheme(color="#121826", elevation=0),
             expansion_tile_theme=ft.ExpansionTileTheme(
-                bgcolor="#1E293B",
-                collapsed_bgcolor="#1E293B",
-                text_color=ft.Colors.ON_SURFACE,
+                bgcolor="#182234",
+                collapsed_bgcolor="#182234",
+                text_color="#F8FAFC",
                 icon_color=ft.Colors.INDIGO_ACCENT,
             ),
             data_table_theme=ft.DataTableTheme(
-                heading_row_color="#283548",
-                data_row_color="#161F2E",
+                heading_row_color="#1E293B",
+                data_row_color="#121826",
             ),
         )
 
@@ -141,12 +141,16 @@ class LimitApp:
         )
 
         # UI Controls for Calculator
+        self.keypad_visible = True
         self.expr_input = ft.TextField(
             label="Функция f(x)",
-            hint_text="sin(x)/x, (1-cos(x))/x^2...",
+            hint_text="sin(x)/x, (1+1/x)^x, sqrt(x)...",
             value="sin(x)/x",
-            prefix_icon=ft.Icons.FUNCTIONS,
+            prefix_icon=ft.Icons.FUNCTIONS_ROUNDED,
             border=ft.OutlineInputBorder(border_radius=12),
+            dense=True,
+            bgcolor="#182234",
+            border_color="#334155",
             autofocus=False,
             expand=True,
             on_change=self.on_input_changed,
@@ -156,16 +160,22 @@ class LimitApp:
         self.var_input = ft.TextField(
             label="Перем.",
             value="x",
-            width=76,
+            width=72,
+            dense=True,
+            bgcolor="#182234",
+            border_color="#334155",
             text_align=ft.TextAlign.CENTER,
             border=ft.OutlineInputBorder(border_radius=12),
             on_change=self.on_input_changed,
         )
 
         self.point_input = ft.TextField(
-            label="Точка (x₀)",
+            label="Точка x₀",
             value="0",
             hint_text="0, oo, 1, pi...",
+            dense=True,
+            bgcolor="#182234",
+            border_color="#334155",
             border=ft.OutlineInputBorder(border_radius=12),
             expand=3,
             on_change=self.on_input_changed,
@@ -175,6 +185,9 @@ class LimitApp:
         self.dir_dropdown = ft.Dropdown(
             label="Направление",
             value="+-",
+            dense=True,
+            bgcolor="#182234",
+            border_color="#334155",
             border=ft.OutlineInputBorder(border_radius=12),
             options=[
                 ft.dropdown.Option("+-", "x → x₀ (двусторонний)"),
@@ -298,18 +311,18 @@ class LimitApp:
         self.app_bar = ft.AppBar(
             leading=ft.Container(
                 content=leading_control,
-                padding=ft.Padding.only(left=10, top=6, bottom=6),
+                padding=ft.Padding.only(left=12, top=6, bottom=6),
             ),
-            title_spacing=0,
+            title_spacing=2,
             title=ft.Row(
                 spacing=8,
                 controls=[
-                    ft.Text("LimitApp", weight=ft.FontWeight.BOLD, size=18),
+                    ft.Text("LimitApp", weight=ft.FontWeight.BOLD, size=19, color="#F8FAFC"),
                     ft.Container(
-                        content=ft.Text("AI TUTOR PRO", size=9, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                        content=ft.Text("AI PRO", size=9, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                         bgcolor=ft.Colors.INDIGO_600,
                         padding=ft.Padding.symmetric(horizontal=6, vertical=2),
-                        border_radius=8,
+                        border_radius=6,
                     ),
                 ],
                 tight=True,
@@ -317,23 +330,17 @@ class LimitApp:
             actions=[
                 ft.IconButton(
                     icon=ft.Icons.CAMERA_ALT_OUTLINED,
-                    tooltip="Ввод предела по фото (OCR)",
+                    tooltip="Ввод по фото (OCR)",
                     on_click=self.open_photo_input_dialog,
                 ),
                 ft.IconButton(
-                    icon=ft.Icons.CASINO_OUTLINED,
-                    tooltip="Случайный пример",
-                    on_click=self.load_random_example,
-                ),
-                ft.IconButton(
-                    icon=ft.Icons.AUTO_AWESOME,
+                    icon=ft.Icons.SETTINGS_OUTLINED,
                     tooltip="Настройки Gemini AI",
                     on_click=self.open_gemini_settings,
                 ),
-                self.theme_btn,
             ],
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-            elevation=2,
+            bgcolor="#121826",
+            elevation=0,
         )
 
         self.page.appbar = self.app_bar
@@ -676,49 +683,50 @@ class LimitApp:
         self.update_live_preview()
         self.update_chip_highlights()
 
+    def toggle_keypad(self, e=None):
+        self.keypad_visible = not getattr(self, "keypad_visible", True)
+        if hasattr(self, "keypad_container"):
+            self.keypad_container.visible = self.keypad_visible
+        if hasattr(self, "toggle_keypad_btn"):
+            self.toggle_keypad_btn.text = "⌨️ Клавиши" if not self.keypad_visible else "⌨️ Скрыть"
+        self.page.update()
+
     def make_key(self, code: str, label: str, ktype: str) -> ft.Control:
         if len(label) >= 6:
-            font_size = 9.5
+            font_size = 10.0
         elif len(label) >= 4:
-            font_size = 11.0
+            font_size = 11.5
         elif len(label) >= 2:
-            font_size = 12.5
+            font_size = 13.0
         else:
-            font_size = 15.0
+            font_size = 15.5
 
         if ktype == "clear":
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.ON_ERROR_CONTAINER, no_wrap=True)
-            bgcolor = ft.Colors.ERROR_CONTAINER
-            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=13, color="#FCA5A5", no_wrap=True)
+            bgcolor = "#450A0A"
         elif ktype == "back":
-            content = ft.Icon(ft.Icons.BACKSPACE_OUTLINED, size=17, color=ft.Colors.ON_SECONDARY_CONTAINER)
-            bgcolor = ft.Colors.SECONDARY_CONTAINER
-            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+            content = ft.Icon(ft.Icons.BACKSPACE_OUTLINED, size=18, color="#CBD5E1")
+            bgcolor = "#1E293B"
         elif ktype == "var":
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, italic=True, size=font_size, color=ft.Colors.ON_PRIMARY_CONTAINER, no_wrap=True)
-            bgcolor = ft.Colors.PRIMARY_CONTAINER
-            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, italic=True, size=font_size, color="#A5B4FC", no_wrap=True)
+            bgcolor = "#312E81"
         elif ktype == "func":
-            content = ft.Text(label, weight=ft.FontWeight.W_600, size=font_size, color=ft.Colors.PRIMARY, no_wrap=True)
-            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
-            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+            content = ft.Text(label, weight=ft.FontWeight.W_600, size=font_size, color="#93C5FD", no_wrap=True)
+            bgcolor = "#1E293B"
         elif ktype == "num":
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=15, color=ft.Colors.ON_SURFACE, no_wrap=True)
-            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST
-            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=16, color="#F8FAFC", no_wrap=True)
+            bgcolor = "#182234"
         else:  # "op"
-            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=font_size, color=ft.Colors.ON_SURFACE, no_wrap=True)
-            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST
-            border = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT)
+            content = ft.Text(label, weight=ft.FontWeight.BOLD, size=font_size, color="#E2E8F0", no_wrap=True)
+            bgcolor = "#1E293B"
 
         return ft.Container(
             content=content,
             alignment=ft.Alignment.CENTER,
-            height=42,
+            height=40,
             expand=1,
             bgcolor=bgcolor,
-            border_radius=10,
-            border=border,
+            border_radius=8,
             padding=ft.Padding.symmetric(horizontal=1),
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
             ink=True,
@@ -895,15 +903,14 @@ class LimitApp:
                 content=ft.Row(
                     controls=[
                         ft.Icon(ft.Icons.AUTO_AWESOME, size=11, color=ft.Colors.AMBER_400),
-                        ft.Text(label, size=11, weight=ft.FontWeight.BOLD, no_wrap=True),
+                        ft.Text(label, size=12, weight=ft.FontWeight.W_600, color="#F8FAFC", no_wrap=True),
                     ],
                     spacing=4,
                     tight=True,
                 ),
-                padding=ft.Padding.symmetric(horizontal=8, vertical=5),
-                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+                bgcolor="#182234",
                 border_radius=8,
-                border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
                 tooltip=tip,
                 ink=True,
                 on_click=lambda e, t=tmpl: self.apply_template(t),
@@ -995,13 +1002,12 @@ class LimitApp:
                 controls=[self.tab_basic_btn, self.tab_func_btn],
                 spacing=4,
             ),
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            bgcolor="#182234",
             padding=3,
             border_radius=10,
-            border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
         )
 
-        keypad_container = ft.Container(
+        self.keypad_container = ft.Container(
             content=ft.Column(
                 controls=[
                     segmented_tab_switch,
@@ -1012,8 +1018,8 @@ class LimitApp:
             ),
             padding=10,
             border_radius=14,
-            bgcolor=ft.Colors.SURFACE_CONTAINER,
-            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+            bgcolor="#121826",
+            visible=self.keypad_visible,
         )
 
         # 3. Variable selector chips
@@ -1078,11 +1084,21 @@ class LimitApp:
             dir_chips.append(chip)
 
         # 6. Primary Action Buttons
+        self.toggle_keypad_btn = ft.TextButton(
+            content=ft.Row(
+                controls=[ft.Icon(ft.Icons.KEYBOARD_HIDE_ROUNDED, size=14), ft.Text("⌨️ Клавиатура", size=11, weight=ft.FontWeight.W_600)],
+                spacing=3,
+                tight=True,
+            ),
+            style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=8, vertical=4)),
+            on_click=self.toggle_keypad,
+        )
+
         calc_btn = ft.FilledButton(
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.FLASH_ON, color=ft.Colors.AMBER_300, size=18),
-                    ft.Text("Рассчитать предел", weight=ft.FontWeight.BOLD, size=14),
+                    ft.Icon(ft.Icons.BOLT_ROUNDED, color=ft.Colors.AMBER_300, size=20),
+                    ft.Text("Рассчитать предел", weight=ft.FontWeight.BOLD, size=15),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 tight=True,
@@ -1091,7 +1107,7 @@ class LimitApp:
                 bgcolor=ft.Colors.INDIGO_600,
                 color=ft.Colors.WHITE,
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding.symmetric(vertical=13),
+                padding=ft.Padding.symmetric(vertical=14),
             ),
             expand=True,
             on_click=self.on_calculate_click,
@@ -1139,31 +1155,24 @@ class LimitApp:
         preview_card = ft.Container(
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.AUTO_GRAPH, size=18, color=ft.Colors.PRIMARY),
+                    ft.Icon(ft.Icons.AUTO_GRAPH_ROUNDED, size=18, color=ft.Colors.INDIGO_ACCENT),
                     ft.Container(
                         content=self.live_preview_text,
                         expand=True,
                     ),
                     ft.IconButton(
-                        icon=ft.Icons.CAMERA_ALT,
-                        icon_size=16,
-                        tooltip="Ввод по фото",
-                        on_click=self.open_photo_input_dialog,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.COPY,
+                        icon=ft.Icons.COPY_ROUNDED,
                         icon_size=16,
                         tooltip="Скопировать формулу",
                         on_click=copy_preview_formula,
                     ),
                 ],
-                spacing=4,
+                spacing=6,
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
-            padding=ft.Padding.only(left=12, right=4, top=3, bottom=3),
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            padding=ft.Padding.symmetric(horizontal=12, vertical=8),
+            bgcolor="#182234",
             border_radius=12,
-            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
         )
 
         return ft.ListView(
@@ -1189,7 +1198,7 @@ class LimitApp:
                                         controls=[
                                             ft.TextButton(
                                                 content=ft.Row(
-                                                    [ft.Icon(ft.Icons.CAMERA_ALT, size=13), ft.Text("Фото", size=11)],
+                                                    [ft.Icon(ft.Icons.CAMERA_ALT_ROUNDED, size=13), ft.Text("Фото", size=11)],
                                                     spacing=3,
                                                     tight=True,
                                                 ),
@@ -1207,13 +1216,14 @@ class LimitApp:
                                             ),
                                             ft.TextButton(
                                                 content=ft.Row(
-                                                    [ft.Icon(ft.Icons.CLEAR_ALL, size=13), ft.Text("Очистить", size=11)],
+                                                    [ft.Icon(ft.Icons.CLEAR_ALL_ROUNDED, size=13), ft.Text("Сброс", size=11)],
                                                     spacing=3,
                                                     tight=True,
                                                 ),
                                                 style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
                                                 on_click=self.clear_inputs,
                                             ),
+                                            self.toggle_keypad_btn,
                                         ],
                                         spacing=2,
                                         tight=True,
@@ -1287,12 +1297,11 @@ class LimitApp:
                     ),
                     padding=16,
                     border_radius=16,
-                    bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                    border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                    bgcolor="#121826",
                 ),
 
                 # Touch Mathematical Keypad
-                keypad_container,
+                self.keypad_container,
 
                 # Results container
                 self.result_container,
@@ -1599,48 +1608,44 @@ class LimitApp:
             )
         )
 
-        main_card = ft.Card(
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            content=ft.Container(
-                content=ft.Column(controls=header_items, spacing=10),
-                padding=16,
-            ),
-            elevation=3,
+        main_card = ft.Container(
+            content=ft.Column(controls=header_items, spacing=12),
+            padding=16,
+            bgcolor="#121826",
+            border_radius=16,
         )
         self.result_container.controls.append(main_card)
 
         # 2. Pedagogical Diagnosis of Indeterminacy Card
         if res.get("diagnosis") and res["diagnosis"].get("has_indet"):
             diag = res["diagnosis"]
-            diag_card = ft.Card(
-                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                content=ft.Container(
-                    content=ft.Column(
-                        controls=[
-                            ft.Row(
-                                controls=[
-                                    ft.Icon(ft.Icons.HEALTH_AND_SAFETY, color=ft.Colors.AMBER_400, size=18),
-                                    ft.Text("Диагноз неопределенности (Матанализ)", weight=ft.FontWeight.BOLD, size=14),
-                                ],
-                                spacing=8,
-                                tight=True,
-                            ),
-                            ft.Text(diag["diagnosis"], size=12),
-                            ft.Divider(height=1, thickness=0.5),
-                            ft.Row(
-                                controls=[
-                                    ft.Icon(ft.Icons.LIGHTBULB_OUTLINE, size=16, color=ft.Colors.GREEN_400),
-                                    ft.Text(f"Рекомендованный метод: {diag['recommendation']}", size=11, color=ft.Colors.GREEN_300, weight=ft.FontWeight.W_500),
-                                ],
-                                spacing=6,
-                                tight=True,
-                            ),
-                        ],
-                        spacing=8,
-                    ),
-                    padding=14,
+            diag_card = ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.HEALTH_AND_SAFETY_ROUNDED, color=ft.Colors.AMBER_400, size=18),
+                                ft.Text("Диагноз неопределенности", weight=ft.FontWeight.BOLD, size=14, color="#F8FAFC"),
+                            ],
+                            spacing=8,
+                            tight=True,
+                        ),
+                        ft.Text(diag["diagnosis"], size=12, color="#CBD5E1"),
+                        ft.Divider(height=1, thickness=0.5, color="#1E293B"),
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.LIGHTBULB_OUTLINE, size=16, color=ft.Colors.GREEN_400),
+                                ft.Text(f"Рекомендованный метод: {diag['recommendation']}", size=12, color=ft.Colors.GREEN_300, weight=ft.FontWeight.W_500),
+                            ],
+                            spacing=6,
+                            tight=True,
+                        ),
+                    ],
+                    spacing=8,
                 ),
-                elevation=2,
+                padding=14,
+                bgcolor="#121826",
+                border_radius=14,
             )
             self.result_container.controls.append(diag_card)
 
@@ -1661,27 +1666,25 @@ class LimitApp:
                     )
                 )
 
-            methods_card = ft.Card(
-                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                content=ft.Container(
-                    content=ft.Column(
-                        controls=[
-                            ft.Row(
-                                controls=[
-                                    ft.Icon(ft.Icons.ALT_ROUTE, color=ft.Colors.INDIGO_ACCENT, size=18),
-                                    ft.Text("Сравнение методов решения (Alternative Paths)", weight=ft.FontWeight.BOLD, size=14),
-                                ],
-                                spacing=8,
-                                tight=True,
-                            ),
-                            ft.Text("Один предел можно решить несколькими способами. Выберите подходящий:", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Column(controls=method_tiles, spacing=2),
-                        ],
-                        spacing=8,
-                    ),
-                    padding=12,
+            methods_card = ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.ALT_ROUTE_ROUNDED, color=ft.Colors.INDIGO_ACCENT, size=18),
+                                ft.Text("Сравнение методов решения (Alternative Paths)", weight=ft.FontWeight.BOLD, size=14, color="#F8FAFC"),
+                            ],
+                            spacing=8,
+                            tight=True,
+                        ),
+                        ft.Text("Один предел можно решить несколькими способами. Выберите подходящий:", size=12, color="#94A3B8"),
+                        ft.Column(controls=method_tiles, spacing=4),
+                    ],
+                    spacing=8,
                 ),
-                elevation=2,
+                padding=14,
+                bgcolor="#121826",
+                border_radius=14,
             )
             self.result_container.controls.append(methods_card)
 
@@ -1705,26 +1708,25 @@ class LimitApp:
                     )
                 )
 
-            steps_card = ft.Card(
-                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                content=ft.Container(
-                    content=ft.Column(
-                        controls=[
-                            ft.Row(
-                                controls=[
-                                    ft.Icon(ft.Icons.RULE, color=ft.Colors.INDIGO_ACCENT),
-                                    ft.Text("Подробный ход решения", weight=ft.FontWeight.BOLD, size=15),
-                                ],
-                                spacing=8,
-                                tight=True,
-                            ),
-                            ft.Divider(height=1, thickness=0.5),
-                            ft.Column(controls=step_controls, spacing=8),
-                        ],
-                        spacing=10,
-                    ),
-                    padding=16,
-                )
+            steps_card = ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.RULE_ROUNDED, color=ft.Colors.INDIGO_ACCENT),
+                                ft.Text("Пошаговое решение", weight=ft.FontWeight.BOLD, size=15, color="#F8FAFC"),
+                            ],
+                            spacing=8,
+                            tight=True,
+                        ),
+                        ft.Divider(height=1, thickness=0.5, color="#1E293B"),
+                        ft.Column(controls=step_controls, spacing=8),
+                    ],
+                    spacing=10,
+                ),
+                padding=16,
+                bgcolor="#121826",
+                border_radius=16,
             )
             self.result_container.controls.append(steps_card)
 
@@ -2096,104 +2098,98 @@ class LimitApp:
             pass
 
         # Card 1: Tactile Slider Explorer
-        tactile_card = ft.Card(
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            content=ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Row(
+        tactile_card = ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.TOUCH_APP_ROUNDED, color=ft.Colors.CYAN_400, size=20),
+                            ft.Text("Тактильный ползунок (x → x₀)", weight=ft.FontWeight.BOLD, size=15, color="#F8FAFC"),
+                        ],
+                        spacing=8,
+                        tight=True,
+                    ),
+                    ft.Text("Ведите палец по экрану для плавного приближения к пределу слева и справа:", size=12, color="#94A3B8"),
+                    self.explorer_slider,
+                    ft.Container(
+                        content=ft.Column(
                             controls=[
-                                ft.Icon(ft.Icons.TOUCH_APP, color=ft.Colors.CYAN_400, size=20),
-                                ft.Text("Тактильный ползунок приближения (x → x₀)", weight=ft.FontWeight.BOLD, size=15),
+                                ft.Row(
+                                    controls=[self.explorer_x_text, self.explorer_dx_text],
+                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                ),
+                                ft.Row(
+                                    controls=[self.explorer_fx_text, self.explorer_diff_text],
+                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                ),
+                                ft.Container(height=4),
+                                ft.Row(
+                                    controls=[
+                                        ft.Text("Сходимость к пределу:", size=11, color="#94A3B8"),
+                                        ft.Container(content=self.explorer_convergence_bar, expand=True),
+                                    ],
+                                    spacing=8,
+                                ),
                             ],
-                            spacing=8,
-                            tight=True,
+                            spacing=4,
                         ),
-                        ft.Text("Двигайте ползунок пальцем, чтобы физически приближаться к предельной точке слева и справа:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                        self.explorer_slider,
-                        ft.Container(
-                            content=ft.Column(
-                                controls=[
-                                    ft.Row(
-                                        controls=[self.explorer_x_text, self.explorer_dx_text],
-                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                    ),
-                                    ft.Row(
-                                        controls=[self.explorer_fx_text, self.explorer_diff_text],
-                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                    ),
-                                    ft.Container(height=4),
-                                    ft.Row(
-                                        controls=[
-                                            ft.Text("Сходимость к пределу:", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-                                            ft.Container(content=self.explorer_convergence_bar, expand=True),
-                                        ],
-                                        spacing=8,
-                                    ),
-                                ],
-                                spacing=4,
-                            ),
-                            padding=12,
-                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
-                            border_radius=10,
-                            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-                        ),
-                    ],
-                    spacing=10,
-                ),
-                padding=16,
+                        padding=12,
+                        bgcolor="#182234",
+                        border_radius=12,
+                    ),
+                ],
+                spacing=10,
             ),
-            elevation=2,
+            padding=16,
+            bgcolor="#121826",
+            border_radius=16,
         )
 
         # Card 2: Epsilon-Delta Rigorous Visualizer
-        eps_card = ft.Card(
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            content=ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Row(
+        eps_card = ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.SHIELD_OUTLINED, color=ft.Colors.AMBER_400, size=20),
+                            ft.Text("Определение Коши (ε - δ)", weight=ft.FontWeight.BOLD, size=15, color="#F8FAFC"),
+                        ],
+                        spacing=8,
+                        tight=True,
+                    ),
+                    ft.Text("Сужайте коридор ε вокруг предела L — алгоритм найдет необходимую ширину δ:", size=12, color="#94A3B8"),
+                    self.eps_slider,
+                    ft.Container(
+                        content=ft.Column(
                             controls=[
-                                ft.Icon(ft.Icons.SHIELD_OUTLINED, color=ft.Colors.AMBER_400, size=20),
-                                ft.Text("Визуализация определения Коши (ε - δ)", weight=ft.FontWeight.BOLD, size=15),
+                                ft.Row(
+                                    controls=[self.eps_val_text, self.delta_val_text],
+                                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                ),
+                                self.corridor_y_text,
+                                self.corridor_x_text,
+                                ft.Container(height=2),
+                                ft.Row(
+                                    controls=[
+                                        ft.Icon(ft.Icons.CHECK_CIRCLE_ROUNDED, color=ft.Colors.GREEN_400, size=15),
+                                        ft.Text("Вся δ-окрестность лежит внутри коридора ε!", size=11, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
+                                    ],
+                                    spacing=6,
+                                    tight=True,
+                                ),
                             ],
-                            spacing=8,
-                            tight=True,
+                            spacing=4,
                         ),
-                        ft.Text("Сужайте коридор ε вокруг предела L — приложение автоматически рассчитывает допустимую ширину δ окрестности x₀:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                        self.eps_slider,
-                        ft.Container(
-                            content=ft.Column(
-                                controls=[
-                                    ft.Row(
-                                        controls=[self.eps_val_text, self.delta_val_text],
-                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                    ),
-                                    self.corridor_y_text,
-                                    self.corridor_x_text,
-                                    ft.Container(height=2),
-                                    ft.Row(
-                                        controls=[
-                                            ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_400, size=15),
-                                            ft.Text("Вся δ-окрестность строго лежит внутри коридора ε!", size=11, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
-                                        ],
-                                        spacing=6,
-                                        tight=True,
-                                    ),
-                                ],
-                                spacing=4,
-                            ),
-                            padding=12,
-                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
-                            border_radius=10,
-                            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-                        ),
-                    ],
-                    spacing=10,
-                ),
-                padding=16,
+                        padding=12,
+                        bgcolor="#182234",
+                        border_radius=12,
+                    ),
+                ],
+                spacing=10,
             ),
-            elevation=2,
+            padding=16,
+            bgcolor="#121826",
+            border_radius=16,
         )
 
         # Card 3: Discontinuity Analysis Card
@@ -2261,13 +2257,11 @@ class LimitApp:
             ),
         ])
 
-        disc_card = ft.Card(
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            content=ft.Container(
-                content=ft.Column(controls=disc_controls, spacing=10),
-                padding=16,
-            ),
-            elevation=2,
+        disc_card = ft.Container(
+            content=ft.Column(controls=disc_controls, spacing=10),
+            padding=16,
+            bgcolor="#121826",
+            border_radius=16,
         )
 
         return ft.ListView(
@@ -2363,41 +2357,39 @@ class LimitApp:
 
             self.page.run_thread(tutor_worker)
 
-        tutor_step_card = ft.Card(
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            content=ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Row(
+        tutor_step_card = ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.PSYCHOLOGY_ROUNDED, color=ft.Colors.AMBER_400, size=20),
+                            ft.Text("Тренажер: Проверка хода решения", weight=ft.FontWeight.BOLD, size=15, color="#F8FAFC"),
+                        ],
+                        spacing=8,
+                        tight=True,
+                    ),
+                    ft.Text(f"Задача: lim ({var_str} → {point_str}) [ {expr_str} ]", size=13, color=ft.Colors.INDIGO_300, weight=ft.FontWeight.BOLD),
+                    ft.Text("Опишите ваш шаг своими словами — AI проверит строгость формул и укажет на ошибки:", size=12, color="#94A3B8"),
+                    user_step_input,
+                    ft.FilledButton(
+                        content=ft.Row(
                             controls=[
-                                ft.Icon(ft.Icons.PSYCHOLOGY, color=ft.Colors.AMBER_400, size=20),
-                                ft.Text("Тренажер: Найди ошибку в моем решении", weight=ft.FontWeight.BOLD, size=15),
+                                ft.Icon(ft.Icons.AUTO_AWESOME, size=16),
+                                ft.Text("Проверить решение с репетитором", size=13, weight=ft.FontWeight.BOLD),
                             ],
                             spacing=8,
                             tight=True,
                         ),
-                        ft.Text(f"Текущая задача: lim ({var_str} → {point_str}) [ {expr_str} ]", size=12, color=ft.Colors.PRIMARY, weight=ft.FontWeight.BOLD),
-                        ft.Text("Опишите свой шаг или ответ своими словами, а AI-репетитор проверит математическую строгость и укажет на потерянные знаки:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                        user_step_input,
-                        ft.FilledButton(
-                            content=ft.Row(
-                                controls=[
-                                    ft.Icon(ft.Icons.AUTO_AWESOME, size=16),
-                                    ft.Text("Проверить решение с репетитором", size=13, weight=ft.FontWeight.BOLD),
-                                ],
-                                spacing=8,
-                                tight=True,
-                            ),
-                            style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_600),
-                            on_click=on_verify_step,
-                        ),
-                        feedback_container,
-                    ],
-                    spacing=10,
-                ),
-                padding=16,
+                        style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_600),
+                        on_click=on_verify_step,
+                    ),
+                    feedback_container,
+                ],
+                spacing=10,
             ),
-            elevation=2,
+            padding=16,
+            bgcolor="#121826",
+            border_radius=16,
         )
 
         # 2. Practice Mode: Similar Problems Generator
@@ -2490,13 +2482,11 @@ class LimitApp:
                 )
             )
 
-        practice_card = ft.Card(
-            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-            content=ft.Container(
-                content=ft.Column(controls=practice_controls, spacing=10),
-                padding=16,
-            ),
-            elevation=2,
+        practice_card = ft.Container(
+            content=ft.Column(controls=practice_controls, spacing=10),
+            padding=16,
+            bgcolor="#121826",
+            border_radius=16,
         )
 
         return ft.ListView(
@@ -3033,17 +3023,17 @@ class LimitApp:
                 controls=[
                     ft.Row(
                         controls=[
-                            ft.Icon(ft.Icons.VERIFIED_USER_OUTLINED, color=ft.Colors.INDIGO_ACCENT, size=20),
-                            ft.Text("Об авторе и проекте", weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.ON_SURFACE),
+                            ft.Icon(ft.Icons.VERIFIED_USER_ROUNDED, color=ft.Colors.INDIGO_ACCENT, size=20),
+                            ft.Text("Об авторе и проекте", weight=ft.FontWeight.BOLD, size=14, color="#F8FAFC"),
                         ],
                         spacing=8,
                     ),
                     ft.Text(
-                        "LimitApp v1.6.0 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).\n"
+                        "LimitApp v1.6.1 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).\n"
                         "Умный интерактивный репетитор по высшей математике: пошаговый расчет пределов, "
                         "визуальное исследование ε-δ, сравнение методов и интеграция с Google Gemini AI.",
                         size=12,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
+                        color="#94A3B8",
                     ),
                     ft.Row(
                         controls=[
@@ -3063,9 +3053,8 @@ class LimitApp:
                 spacing=10,
             ),
             padding=16,
-            bgcolor=ft.Colors.SURFACE_CONTAINER,
+            bgcolor="#121826",
             border_radius=14,
-            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
         )
         history_items.append(about_card)
 
