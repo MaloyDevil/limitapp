@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор математических пределов
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.5.0
+Версия: 1.5.0 (Full Official Release)
 """
 
 import sys
@@ -33,6 +33,11 @@ class LimitApp:
         self.handbook_search_query = ""
         self.active_keypad_tab = "basic"  # "basic" or "func"
 
+        # Dictionaries to track quick-selector chips for active state highlights
+        self.var_chip_widgets = {}
+        self.point_chip_widgets = {}
+        self.dir_chip_widgets = {}
+
         # Load configuration (Gemini API key & selected model)
         self.gemini_api_key, self.gemini_model = self.load_config()
 
@@ -58,7 +63,7 @@ class LimitApp:
         # Live Math preview label
         self.live_preview_text = ft.Text(
             "lim (x → 0) [ sin(x)/x ]",
-            size=15,
+            size=14,
             weight=ft.FontWeight.BOLD,
             color=ft.Colors.PRIMARY,
             no_wrap=True,
@@ -68,7 +73,7 @@ class LimitApp:
         # UI Controls for Calculator
         self.expr_input = ft.TextField(
             label="Функция f(x)",
-            hint_text="Например: sin(x)/x, (1-cos(x))/x^2 или lim(x->0)",
+            hint_text="sin(x)/x, (1-cos(x))/x^2...",
             value="sin(x)/x",
             prefix_icon=ft.Icons.FUNCTIONS,
             border=ft.OutlineInputBorder(border_radius=12),
@@ -81,18 +86,18 @@ class LimitApp:
         self.var_input = ft.TextField(
             label="Перем.",
             value="x",
-            width=80,
+            width=76,
             text_align=ft.TextAlign.CENTER,
             border=ft.OutlineInputBorder(border_radius=12),
             on_change=self.on_input_changed,
         )
 
         self.point_input = ft.TextField(
-            label="Стремится к (x₀)",
+            label="Точка (x₀)",
             value="0",
-            hint_text="0, oo, -oo, 1, pi...",
+            hint_text="0, oo, 1, pi...",
             border=ft.OutlineInputBorder(border_radius=12),
-            expand=True,
+            expand=3,
             on_change=self.on_input_changed,
             on_submit=self.on_calculate_click,
         )
@@ -102,11 +107,11 @@ class LimitApp:
             value="+-",
             border=ft.OutlineInputBorder(border_radius=12),
             options=[
-                ft.dropdown.Option("+-", "Двусторонний (x → x₀)"),
-                ft.dropdown.Option("+", "Справа (x → x₀⁺)"),
-                ft.dropdown.Option("-", "Слева (x → x₀⁻)"),
+                ft.dropdown.Option("+-", "x → x₀ (двусторонний)"),
+                ft.dropdown.Option("+", "x → x₀⁺ (справа)"),
+                ft.dropdown.Option("-", "x → x₀⁻ (слева)"),
             ],
-            expand=True,
+            expand=4,
             on_select=self.on_input_changed,
         )
 
@@ -119,11 +124,14 @@ class LimitApp:
         self.history_view = self.build_history_view()
         self.about_view = self.build_about_view()
 
+        # Update active chip highlights
+        self.update_chip_highlights()
+
         # View container for swapping tabs
         self.content_container = ft.Container(
             content=self.calc_view,
             expand=True,
-            padding=ft.Padding.symmetric(horizontal=14, vertical=10),
+            padding=ft.Padding.symmetric(horizontal=12, vertical=10),
         )
 
         # Mobile Bottom Navigation Bar
@@ -183,12 +191,13 @@ class LimitApp:
         self.app_bar = ft.AppBar(
             leading=ft.Container(
                 content=leading_control,
-                padding=ft.Padding.only(left=12, top=6, bottom=6),
+                padding=ft.Padding.only(left=10, top=6, bottom=6),
             ),
+            title_spacing=0,
             title=ft.Row(
                 spacing=8,
                 controls=[
-                    ft.Text("LimitApp", weight=ft.FontWeight.BOLD, size=19),
+                    ft.Text("LimitApp", weight=ft.FontWeight.BOLD, size=18),
                     ft.Container(
                         content=ft.Text("AI PRO", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                         bgcolor=ft.Colors.INDIGO_600,
@@ -296,10 +305,10 @@ class LimitApp:
                     direction="+-",
                     api_key=test_key,
                     model=model_dropdown.value or gemini_solver.DEFAULT_MODEL,
-                    timeout=12.0,
+                    timeout=14.0,
                 )
                 if res["success"]:
-                    status_text.value = "✅ Ключ активен! Соединение успешно установлено."
+                    status_text.value = f"✅ Ключ активен! Модель: {res.get('model', 'Gemini')}"
                     status_text.color = ft.Colors.GREEN_400
                 else:
                     err = res.get("error", "Ошибка соединения")
@@ -322,8 +331,8 @@ class LimitApp:
         dialog = ft.AlertDialog(
             title=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=24),
-                    ft.Text("Настройки Gemini AI", weight=ft.FontWeight.BOLD, size=17),
+                    ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=22),
+                    ft.Text("Настройки Gemini AI", weight=ft.FontWeight.BOLD, size=16),
                 ],
                 spacing=8,
                 tight=True,
@@ -333,7 +342,7 @@ class LimitApp:
                 content=ft.Column(
                     controls=[
                         ft.Text(
-                            "Для автоматического решения пределов с подробным преподавательским объяснением "
+                            "Для автоматического решения пределов с подробным объяснением теорем "
                             "используется официальный бесплатный API Google Gemini.",
                             size=12,
                             color=ft.Colors.ON_SURFACE_VARIANT,
@@ -395,7 +404,15 @@ class LimitApp:
 
     def show_toast(self, message: str):
         try:
-            self.page.show_dialog(ft.SnackBar(ft.Text(message)))
+            self.page.show_dialog(
+                ft.SnackBar(
+                    content=ft.Text(message, size=13, weight=ft.FontWeight.W_500),
+                    behavior=ft.SnackBarBehavior.FLOATING,
+                    show_close_icon=True,
+                    duration=2500,
+                    shape=ft.RoundedRectangleBorder(radius=10),
+                )
+            )
         except Exception:
             pass
 
@@ -413,6 +430,7 @@ class LimitApp:
 
     def on_input_changed(self, e=None):
         self.update_live_preview()
+        self.update_chip_highlights()
 
     def update_live_preview(self):
         expr = (self.expr_input.value or "f(x)").strip()
@@ -428,6 +446,37 @@ class LimitApp:
 
         pt_display = pt.replace("oo", "∞").replace("pi", "π")
         self.live_preview_text.value = f"lim ({var} → {pt_display}{d_str})  [ {expr} ]"
+        try:
+            self.page.update()
+        except Exception:
+            pass
+
+    def update_chip_highlights(self):
+        cur_var = (self.var_input.value or "").strip()
+        cur_pt = (self.point_input.value or "").strip()
+        cur_dir = (self.dir_dropdown.value or "+-").strip()
+
+        for v, container in self.var_chip_widgets.items():
+            is_active = (cur_var == v)
+            container.bgcolor = ft.Colors.PRIMARY_CONTAINER if is_active else ft.Colors.SURFACE_CONTAINER_HIGH
+            container.border = ft.Border.all(1.2 if is_active else 0.8, ft.Colors.PRIMARY if is_active else ft.Colors.OUTLINE_VARIANT)
+            if hasattr(container.content, "color"):
+                container.content.color = ft.Colors.ON_PRIMARY_CONTAINER if is_active else ft.Colors.ON_SURFACE
+
+        for p_val, container in self.point_chip_widgets.items():
+            is_active = (cur_pt == p_val)
+            container.bgcolor = ft.Colors.PRIMARY_CONTAINER if is_active else ft.Colors.SURFACE_CONTAINER_HIGH
+            container.border = ft.Border.all(1.2 if is_active else 0.8, ft.Colors.PRIMARY if is_active else ft.Colors.OUTLINE_VARIANT)
+            if hasattr(container.content, "color"):
+                container.content.color = ft.Colors.ON_PRIMARY_CONTAINER if is_active else ft.Colors.ON_SURFACE
+
+        for d_val, container in self.dir_chip_widgets.items():
+            is_active = (cur_dir == d_val)
+            container.bgcolor = ft.Colors.PRIMARY_CONTAINER if is_active else ft.Colors.SURFACE_CONTAINER_HIGH
+            container.border = ft.Border.all(1.2 if is_active else 0.8, ft.Colors.PRIMARY if is_active else ft.Colors.OUTLINE_VARIANT)
+            if hasattr(container.content, "color"):
+                container.content.color = ft.Colors.ON_PRIMARY_CONTAINER if is_active else ft.Colors.ON_SURFACE
+
         try:
             self.page.update()
         except Exception:
@@ -462,7 +511,6 @@ class LimitApp:
             self.expr_input.value = (self.expr_input.value or "") + "exp("
         else:
             self.expr_input.value = (self.expr_input.value or "") + sym
-        self._focus_control(self.expr_input)
         self.update_live_preview()
 
     def apply_template(self, expr_template: str, var="x", point="0", direction="+-"):
@@ -472,6 +520,7 @@ class LimitApp:
         self.dir_dropdown.value = direction
         self._focus_control(self.expr_input)
         self.update_live_preview()
+        self.update_chip_highlights()
         self.show_toast(f"Шаблон вставлен: {expr_template}")
 
     def select_variable(self, v: str):
@@ -481,15 +530,18 @@ class LimitApp:
             self.point_input.value = "oo"
         self._focus_control(self.var_input)
         self.update_live_preview()
+        self.update_chip_highlights()
 
     def insert_point(self, val: str):
         self.point_input.value = val
         self._focus_control(self.point_input)
         self.update_live_preview()
+        self.update_chip_highlights()
 
     def select_direction(self, d: str):
         self.dir_dropdown.value = d
         self.update_live_preview()
+        self.update_chip_highlights()
 
     def _focus_control(self, ctrl):
         try:
@@ -515,6 +567,7 @@ class LimitApp:
         self.dir_dropdown.value = "+-"
         self.result_container.visible = False
         self.update_live_preview()
+        self.update_chip_highlights()
         self.show_toast("Поля очищены")
 
     def make_key(self, code: str, label: str, ktype: str) -> ft.Control:
@@ -555,10 +608,10 @@ class LimitApp:
         return ft.Container(
             content=content,
             alignment=ft.Alignment.CENTER,
-            height=38,
+            height=42,
             expand=1,
             bgcolor=bgcolor,
-            border_radius=8,
+            border_radius=10,
             border=border,
             padding=ft.Padding.symmetric(horizontal=1),
             clip_behavior=ft.ClipBehavior.HARD_EDGE,
@@ -591,13 +644,13 @@ class LimitApp:
             chip = ft.Container(
                 content=ft.Row(
                     controls=[
-                        ft.Icon(ft.Icons.AUTO_AWESOME, size=12, color=ft.Colors.AMBER_400),
+                        ft.Icon(ft.Icons.AUTO_AWESOME, size=11, color=ft.Colors.AMBER_400),
                         ft.Text(label, size=11, weight=ft.FontWeight.BOLD, no_wrap=True),
                     ],
                     spacing=4,
                     tight=True,
                 ),
-                padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                padding=ft.Padding.symmetric(horizontal=8, vertical=5),
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                 border_radius=8,
                 border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
@@ -619,7 +672,7 @@ class LimitApp:
         basic_r2 = [("7", "7", "num"), ("8", "8", "num"), ("9", "9", "num"), ("/", "÷", "op"), ("BACK", "⌫", "back")]
         basic_r3 = [("4", "4", "num"), ("5", "5", "num"), ("6", "6", "num"), ("*", "×", "op"), ("^", "^", "op")]
         basic_r4 = [("1", "1", "num"), ("2", "2", "num"), ("3", "3", "num"), ("-", "−", "op"), ("sqrt(", "√", "func")]
-        basic_r5 = [("0", "0", "num"), (".", ".", "num"), (",", ",", "num"), ("+", "+", "op"), ("abs(", "|x|", "func")]
+        basic_r5 = [("0", "0", "num"), (".", ".", "num"), ("oo", "∞", "var"), ("+", "+", "op"), ("abs(", "|x|", "func")]
 
         # Tab 2: 📐 f(x) Функции
         func_r1 = [("sin(", "sin", "func"), ("cos(", "cos", "func"), ("tan(", "tg", "func"), ("cot(", "ctg", "func"), ("pi", "π", "var")]
@@ -652,64 +705,58 @@ class LimitApp:
             visible=False,
         )
 
-        def switch_tab(tab_name: str):
-            self.active_keypad_tab = tab_name
-            self.basic_keys_col.visible = (tab_name == "basic")
-            self.func_keys_col.visible = (tab_name == "func")
-            tab_basic_btn.bgcolor = ft.Colors.PRIMARY_CONTAINER if tab_name == "basic" else ft.Colors.SURFACE_CONTAINER_HIGH
-            tab_func_btn.bgcolor = ft.Colors.PRIMARY_CONTAINER if tab_name == "func" else ft.Colors.SURFACE_CONTAINER_HIGH
-            self.page.update()
-
-        tab_basic_btn = ft.Container(
+        # Tab indicator controls
+        self.tab_basic_text = ft.Text("123 / Алгебра", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+        self.tab_basic_icon = ft.Icon(ft.Icons.PIN, size=15, color=ft.Colors.WHITE)
+        self.tab_basic_btn = ft.Container(
             content=ft.Row(
-                controls=[
-                    ft.Icon(ft.Icons.PIN, size=15),
-                    ft.Text("123 / Алгебра", size=12, weight=ft.FontWeight.BOLD),
-                ],
-                spacing=4,
+                controls=[self.tab_basic_icon, self.tab_basic_text],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=5,
                 tight=True,
             ),
-            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-            bgcolor=ft.Colors.PRIMARY_CONTAINER,
+            alignment=ft.Alignment.CENTER,
+            padding=ft.Padding.symmetric(vertical=7),
+            bgcolor=ft.Colors.PRIMARY,
             border_radius=8,
+            expand=True,
             ink=True,
-            on_click=lambda e: switch_tab("basic"),
+            on_click=lambda e: self.switch_keypad_tab("basic"),
         )
 
-        tab_func_btn = ft.Container(
+        self.tab_func_text = ft.Text("f(x) Функции", size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_SURFACE_VARIANT)
+        self.tab_func_icon = ft.Icon(ft.Icons.FUNCTIONS, size=15, color=ft.Colors.ON_SURFACE_VARIANT)
+        self.tab_func_btn = ft.Container(
             content=ft.Row(
-                controls=[
-                    ft.Icon(ft.Icons.FUNCTIONS, size=15),
-                    ft.Text("f(x) Функции", size=12, weight=ft.FontWeight.BOLD),
-                ],
-                spacing=4,
+                controls=[self.tab_func_icon, self.tab_func_text],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=5,
                 tight=True,
             ),
-            padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            alignment=ft.Alignment.CENTER,
+            padding=ft.Padding.symmetric(vertical=7),
+            bgcolor=ft.Colors.TRANSPARENT,
             border_radius=8,
+            expand=True,
             ink=True,
-            on_click=lambda e: switch_tab("func"),
+            on_click=lambda e: self.switch_keypad_tab("func"),
+        )
+
+        segmented_tab_switch = ft.Container(
+            content=ft.Row(
+                controls=[self.tab_basic_btn, self.tab_func_btn],
+                spacing=4,
+            ),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            padding=3,
+            border_radius=10,
+            border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
         )
 
         keypad_container = ft.Container(
             content=ft.Column(
                 controls=[
-                    ft.Row(
-                        controls=[
-                            ft.Row(controls=[tab_basic_btn, tab_func_btn], spacing=6, tight=True),
-                            ft.TextButton(
-                                content=ft.Row(
-                                    controls=[ft.Icon(ft.Icons.CLEAR_ALL, size=15), ft.Text("Очистить", size=11)],
-                                    spacing=4,
-                                    tight=True,
-                                ),
-                                style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
-                                on_click=self.clear_inputs,
-                            ),
-                        ],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    ),
+                    segmented_tab_switch,
                     self.basic_keys_col,
                     self.func_keys_col,
                 ],
@@ -722,10 +769,12 @@ class LimitApp:
         )
 
         # 3. Variable selector chips
+        self.var_chip_widgets.clear()
         var_chips = []
         for v in ["x", "n", "t", "y"]:
+            chip_text = ft.Text(v, size=12, weight=ft.FontWeight.BOLD, italic=True)
             chip = ft.Container(
-                content=ft.Text(v, size=12, weight=ft.FontWeight.BOLD, italic=True),
+                content=chip_text,
                 padding=ft.Padding.symmetric(horizontal=10, vertical=4),
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                 border_radius=8,
@@ -733,9 +782,11 @@ class LimitApp:
                 ink=True,
                 on_click=lambda e, var_val=v: self.select_variable(var_val),
             )
+            self.var_chip_widgets[v] = chip
             var_chips.append(chip)
 
         # 4. Point chips
+        self.point_chip_widgets.clear()
         quick_points = [
             ("0", "0"),
             ("oo", "+∞"),
@@ -748,22 +799,26 @@ class LimitApp:
         ]
         point_chips = []
         for val, label in quick_points:
+            chip_text = ft.Text(label, size=12, weight=ft.FontWeight.W_600)
             chip = ft.Container(
-                content=ft.Text(label, size=12, weight=ft.FontWeight.W_600, color=ft.Colors.ON_PRIMARY_CONTAINER),
+                content=chip_text,
                 padding=ft.Padding.symmetric(horizontal=9, vertical=4),
-                bgcolor=ft.Colors.PRIMARY_CONTAINER,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                 border_radius=8,
                 border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
                 ink=True,
                 on_click=lambda e, v=val: self.insert_point(v),
             )
+            self.point_chip_widgets[val] = chip
             point_chips.append(chip)
 
-        # Direction Chips
+        # 5. Direction Chips
+        self.dir_chip_widgets.clear()
         dir_chips = []
         for d_code, d_label in [("+-", "x → x₀"), ("+", "x → x₀⁺"), ("-", "x → x₀⁻")]:
+            chip_text = ft.Text(d_label, size=11, weight=ft.FontWeight.W_600)
             chip = ft.Container(
-                content=ft.Text(d_label, size=11, weight=ft.FontWeight.W_600),
+                content=chip_text,
                 padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                 border_radius=8,
@@ -771,14 +826,15 @@ class LimitApp:
                 ink=True,
                 on_click=lambda e, code=d_code: self.select_direction(code),
             )
+            self.dir_chip_widgets[d_code] = chip
             dir_chips.append(chip)
 
-        # 5. Primary Calculate Buttons
+        # 6. Primary Action Buttons
         calc_btn = ft.FilledButton(
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.FLASH_ON, color=ft.Colors.AMBER_300, size=17),
-                    ft.Text("Рассчитать", weight=ft.FontWeight.BOLD, size=13.5, no_wrap=True),
+                    ft.Icon(ft.Icons.FLASH_ON, color=ft.Colors.AMBER_300, size=18),
+                    ft.Text("Рассчитать предел", weight=ft.FontWeight.BOLD, size=14),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 tight=True,
@@ -787,9 +843,9 @@ class LimitApp:
                 bgcolor=ft.Colors.INDIGO_600,
                 color=ft.Colors.WHITE,
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding.symmetric(vertical=12, horizontal=4),
+                padding=ft.Padding.symmetric(vertical=13),
             ),
-            expand=3,
+            expand=True,
             on_click=self.on_calculate_click,
         )
 
@@ -797,24 +853,67 @@ class LimitApp:
             content=ft.Row(
                 controls=[
                     ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=17),
-                    ft.Text("Gemini AI", weight=ft.FontWeight.BOLD, size=13.5, no_wrap=True),
+                    ft.Text("Объяснение Gemini AI", weight=ft.FontWeight.BOLD, size=13),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 tight=True,
             ),
             style=ft.ButtonStyle(
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding.symmetric(vertical=12, horizontal=4),
+                padding=ft.Padding.symmetric(vertical=12),
             ),
-            expand=3,
-            tooltip="Решить с подробным объяснением от Google Gemini AI",
+            expand=True,
+            tooltip="Решить с подробным объяснением теорем от Google Gemini AI",
             on_click=self.on_gemini_solve_click,
         )
 
-        gemini_cfg_btn = ft.IconButton(
-            icon=ft.Icons.SETTINGS,
-            tooltip="Настройки Gemini API",
-            on_click=self.open_gemini_settings,
+        gemini_cfg_btn = ft.Container(
+            content=ft.IconButton(
+                icon=ft.Icons.SETTINGS,
+                icon_size=19,
+                tooltip="Настройки Gemini API",
+                on_click=self.open_gemini_settings,
+            ),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            border_radius=12,
+            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+            width=46,
+            height=46,
+            alignment=ft.Alignment.CENTER,
+        )
+
+        def copy_preview_formula(e):
+            val = (self.expr_input.value or "").strip()
+            if val:
+                try:
+                    ft.Clipboard.set(val)
+                    self.show_toast("Формула скопирована! 📋")
+                except Exception:
+                    pass
+
+        # Live Formula Blackboard Card with instant Copy icon
+        preview_card = ft.Container(
+            content=ft.Row(
+                controls=[
+                    ft.Icon(ft.Icons.AUTO_GRAPH, size=18, color=ft.Colors.PRIMARY),
+                    ft.Container(
+                        content=self.live_preview_text,
+                        expand=True,
+                    ),
+                    ft.IconButton(
+                        icon=ft.Icons.COPY,
+                        icon_size=16,
+                        tooltip="Скопировать формулу",
+                        on_click=copy_preview_formula,
+                    ),
+                ],
+                spacing=6,
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            padding=ft.Padding.only(left=12, right=4, top=3, bottom=3),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_radius=12,
+            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
         )
 
         return ft.ListView(
@@ -830,20 +929,35 @@ class LimitApp:
                                 controls=[
                                     ft.Row(
                                         controls=[
-                                            ft.Icon(ft.Icons.AUTO_AWESOME, size=16, color=ft.Colors.AMBER_400),
-                                            ft.Text("Быстрые шаблоны задач:", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+                                            ft.Icon(ft.Icons.AUTO_AWESOME, size=15, color=ft.Colors.AMBER_400),
+                                            ft.Text("Шаблоны задач:", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
                                         ],
                                         spacing=4,
                                         tight=True,
                                     ),
-                                    ft.TextButton(
-                                        content=ft.Row(
-                                            [ft.Icon(ft.Icons.CASINO_OUTLINED, size=15), ft.Text("Пример", size=11)],
-                                            spacing=4,
-                                            tight=True,
-                                        ),
-                                        style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
-                                        on_click=self.load_random_example,
+                                    ft.Row(
+                                        controls=[
+                                            ft.TextButton(
+                                                content=ft.Row(
+                                                    [ft.Icon(ft.Icons.CASINO_OUTLINED, size=14), ft.Text("Пример", size=11)],
+                                                    spacing=3,
+                                                    tight=True,
+                                                ),
+                                                style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
+                                                on_click=self.load_random_example,
+                                            ),
+                                            ft.TextButton(
+                                                content=ft.Row(
+                                                    [ft.Icon(ft.Icons.CLEAR_ALL, size=14), ft.Text("Очистить", size=11)],
+                                                    spacing=3,
+                                                    tight=True,
+                                                ),
+                                                style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
+                                                on_click=self.clear_inputs,
+                                            ),
+                                        ],
+                                        spacing=2,
+                                        tight=True,
                                     ),
                                 ],
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -853,20 +967,7 @@ class LimitApp:
                             template_scroll_row,
 
                             # Live Formula Preview Card
-                            ft.Container(
-                                content=ft.Row(
-                                    controls=[
-                                        ft.Icon(ft.Icons.AUTO_GRAPH, size=18, color=ft.Colors.PRIMARY),
-                                        self.live_preview_text,
-                                    ],
-                                    spacing=8,
-                                    tight=True,
-                                ),
-                                padding=ft.Padding.symmetric(horizontal=12, vertical=10),
-                                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
-                                border_radius=10,
-                                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-                            ),
+                            preview_card,
 
                             # Input Fields
                             ft.Row(controls=[self.expr_input, self.var_input], spacing=8),
@@ -878,16 +979,13 @@ class LimitApp:
                                     *var_chips,
                                 ],
                                 spacing=6,
-                                tight=True,
+                                wrap=True,
                             ),
-
-                            # Tabbed Ergonomic Keyboard
-                            keypad_container,
 
                             ft.Divider(height=1, thickness=0.5),
 
                             # Limit Parameters (x0, direction)
-                            ft.Text("Точка стремления и направление", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text("Точка стремления и знак", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
                             ft.Row(controls=[self.point_input, self.dir_dropdown], spacing=8),
 
                             # Point chips
@@ -907,17 +1005,22 @@ class LimitApp:
                                     *dir_chips,
                                 ],
                                 spacing=6,
-                                tight=True,
+                                wrap=True,
                             ),
 
-                            ft.Container(height=4),
+                            ft.Container(height=2),
 
-                            # Action buttons row
-                            ft.Row(
+                            # Action buttons
+                            ft.Column(
                                 controls=[
-                                    calc_btn,
-                                    gemini_btn,
-                                    gemini_cfg_btn,
+                                    ft.Row(controls=[calc_btn]),
+                                    ft.Row(
+                                        controls=[
+                                            gemini_btn,
+                                            gemini_cfg_btn,
+                                        ],
+                                        spacing=8,
+                                    ),
                                 ],
                                 spacing=8,
                             ),
@@ -928,9 +1031,30 @@ class LimitApp:
                     bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                     border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
                 ),
+
+                # Touch Mathematical Keypad
+                keypad_container,
+
+                # Results container
                 self.result_container,
             ],
         )
+
+    def switch_keypad_tab(self, tab_name: str):
+        self.active_keypad_tab = tab_name
+        self.basic_keys_col.visible = (tab_name == "basic")
+        self.func_keys_col.visible = (tab_name == "func")
+
+        is_basic = (tab_name == "basic")
+        self.tab_basic_btn.bgcolor = ft.Colors.PRIMARY if is_basic else ft.Colors.TRANSPARENT
+        self.tab_basic_text.color = ft.Colors.WHITE if is_basic else ft.Colors.ON_SURFACE_VARIANT
+        self.tab_basic_icon.color = ft.Colors.WHITE if is_basic else ft.Colors.ON_SURFACE_VARIANT
+
+        self.tab_func_btn.bgcolor = ft.Colors.PRIMARY if not is_basic else ft.Colors.TRANSPARENT
+        self.tab_func_text.color = ft.Colors.WHITE if not is_basic else ft.Colors.ON_SURFACE_VARIANT
+        self.tab_func_icon.color = ft.Colors.WHITE if not is_basic else ft.Colors.ON_SURFACE_VARIANT
+
+        self.page.update()
 
     # -------------------------------------------------------------
     # SymPy Analytical Limit Calculation
@@ -949,6 +1073,7 @@ class LimitApp:
             self.point_input.value = parsed_full["point"]
             self.dir_dropdown.value = parsed_full["direction"]
             self.update_live_preview()
+            self.update_chip_highlights()
 
         expr_text = self.expr_input.value.strip()
         var_text = self.var_input.value.strip() if self.var_input.value else "x"
@@ -966,14 +1091,44 @@ class LimitApp:
                             controls=[
                                 ft.Row(
                                     controls=[
-                                        ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.RED_400),
-                                        ft.Text("Не удалось вычислить предел", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_400),
+                                        ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.RED_400, size=20),
+                                        ft.Text("Не удалось вычислить предел аналитически", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_400, size=14),
                                     ],
                                     tight=True,
                                 ),
-                                ft.Text(res.get("error", "Проверьте синтаксис ввода.")),
+                                ft.Text(res.get("error", "Проверьте синтаксис ввода."), size=12),
+                                ft.Divider(height=1, thickness=0.5),
+                                ft.Row(
+                                    controls=[
+                                        ft.FilledButton(
+                                            content=ft.Row(
+                                                controls=[
+                                                    ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=16),
+                                                    ft.Text("Решить через Gemini AI", size=12, weight=ft.FontWeight.BOLD),
+                                                ],
+                                                spacing=6,
+                                                tight=True,
+                                            ),
+                                            style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_700),
+                                            on_click=self.on_gemini_solve_click,
+                                        ),
+                                        ft.OutlinedButton(
+                                            content=ft.Row(
+                                                controls=[
+                                                    ft.Icon(ft.Icons.CLEAR_ALL, size=16),
+                                                    ft.Text("Очистить", size=12),
+                                                ],
+                                                spacing=4,
+                                                tight=True,
+                                            ),
+                                            on_click=self.clear_inputs,
+                                        ),
+                                    ],
+                                    spacing=8,
+                                    wrap=True,
+                                ),
                             ],
-                            spacing=8,
+                            spacing=10,
                         ),
                         padding=16,
                     ),
@@ -1021,29 +1176,33 @@ class LimitApp:
         header_items = [
             ft.Row(
                 controls=[
-                    ft.Text(lim_notation, size=13, color=ft.Colors.ON_SURFACE_VARIANT, italic=True),
+                    ft.Container(
+                        content=ft.Text(lim_notation, size=13, color=ft.Colors.ON_SURFACE_VARIANT, italic=True),
+                        expand=True,
+                    ),
                     ft.Container(
                         content=ft.Text("Аналитическое решение", size=10, weight=ft.FontWeight.W_600, color=ft.Colors.GREEN_400),
                         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                        padding=ft.Padding.symmetric(horizontal=8, vertical=2),
+                        padding=ft.Padding.symmetric(horizontal=8, vertical=3),
                         border_radius=6,
                     ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                wrap=True,
             ),
             ft.Container(
                 content=ft.Row(
                     controls=[
-                        ft.Text("= ", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
-                        ft.Text(ans_text, size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
-                        ft.Text(f" ({numeric_text})" if numeric_text else "", size=15, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.Text("= ", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                        ft.Text(ans_text, size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
+                        ft.Text(f" ({numeric_text})" if numeric_text else "", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
                     ],
                     alignment=ft.MainAxisAlignment.START,
-                    tight=True,
+                    wrap=True,
                 ),
-                padding=ft.Padding.symmetric(horizontal=12, vertical=8),
+                padding=ft.Padding.symmetric(horizontal=14, vertical=10),
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
-                border_radius=10,
+                border_radius=12,
                 border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
             ),
         ]
@@ -1083,7 +1242,7 @@ class LimitApp:
                         ),
                     ],
                     spacing=8,
-                    tight=True,
+                    wrap=True,
                 )
             )
 
@@ -1115,8 +1274,8 @@ class LimitApp:
 
         copy_btn = ft.OutlinedButton(
             content=ft.Row(
-                controls=[ft.Icon(ft.Icons.COPY, size=16), ft.Text("Скопировать", size=13)],
-                spacing=6,
+                controls=[ft.Icon(ft.Icons.COPY, size=15), ft.Text("Скопировать", size=12)],
+                spacing=5,
                 tight=True,
             ),
             on_click=copy_result,
@@ -1124,8 +1283,8 @@ class LimitApp:
 
         ai_deep_btn = ft.FilledTonalButton(
             content=ft.Row(
-                controls=[ft.Icon(ft.Icons.AUTO_AWESOME, size=16, color=ft.Colors.AMBER_400), ft.Text("Объяснить с ИИ", size=13)],
-                spacing=6,
+                controls=[ft.Icon(ft.Icons.AUTO_AWESOME, size=15, color=ft.Colors.AMBER_400), ft.Text("Объяснить с ИИ", size=12)],
+                spacing=5,
                 tight=True,
             ),
             on_click=self.on_gemini_solve_click,
@@ -1133,9 +1292,16 @@ class LimitApp:
 
         header_items.append(
             ft.Row(
-                controls=[fav_btn, copy_btn, ai_deep_btn],
-                alignment=ft.MainAxisAlignment.END,
-                spacing=6,
+                controls=[
+                    fav_btn,
+                    ft.Row(
+                        controls=[copy_btn, ai_deep_btn],
+                        spacing=6,
+                        wrap=True,
+                        tight=True,
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 wrap=True,
             )
         )
@@ -1265,6 +1431,7 @@ class LimitApp:
             self.point_input.value = parsed_full["point"]
             self.dir_dropdown.value = parsed_full["direction"]
             self.update_live_preview()
+            self.update_chip_highlights()
 
         expr_text = self.expr_input.value.strip()
         var_text = self.var_input.value.strip() if self.var_input.value else "x"
@@ -1310,7 +1477,7 @@ class LimitApp:
                 direction=dir_val,
                 api_key=self.gemini_api_key,
                 model=self.gemini_model,
-                timeout=30.0,
+                timeout=35.0,
             )
             self.render_gemini_result(res, expr_text, var_text, point_text, dir_val)
 
@@ -1472,7 +1639,7 @@ class LimitApp:
             "var": var,
             "point": point,
             "dir": direction,
-            "result": "Gemini AI Решение",
+            "result": "✨ Gemini AI",
             "favorite": False,
         })
         if len(self.history) > 50:
@@ -1489,6 +1656,7 @@ class LimitApp:
         self.point_input.value = p["point"]
         self.dir_dropdown.value = p["dir"]
         self.update_live_preview()
+        self.update_chip_highlights()
         self.nav_bar.selected_index = 0
         self.content_container.content = self.calc_view
         self.page.update()
@@ -1501,7 +1669,7 @@ class LimitApp:
 
     def build_handbook_view(self) -> ft.Control:
         search_field = ft.TextField(
-            hint_text="Поиск по справочнику (формула, функция, предел)...",
+            hint_text="Поиск формул, пределов, функций...",
             value=self.handbook_search_query,
             prefix_icon=ft.Icons.SEARCH,
             border=ft.OutlineInputBorder(border_radius=12),
@@ -1529,7 +1697,10 @@ class LimitApp:
                                 controls=[
                                     ft.Row(
                                         controls=[
-                                            ft.Text(p["title"], weight=ft.FontWeight.BOLD, size=13),
+                                            ft.Container(
+                                                content=ft.Text(p["title"], weight=ft.FontWeight.BOLD, size=13),
+                                                expand=True,
+                                            ),
                                             ft.Container(
                                                 content=ft.Text(f"= {p['result']}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                                                 bgcolor=ft.Colors.INDIGO,
@@ -1538,6 +1709,7 @@ class LimitApp:
                                             ),
                                         ],
                                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                        wrap=True,
                                     ),
                                     ft.Text(p["formula"], size=13, color=ft.Colors.PRIMARY, weight=ft.FontWeight.W_600),
                                     ft.Text(f"Раздел: {cat_name} • {p['desc']}", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -1559,6 +1731,7 @@ class LimitApp:
                                 spacing=6,
                             ),
                             padding=12,
+                            margin=ft.Margin.only(bottom=8),
                             bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                             border_radius=12,
                             border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
@@ -1589,7 +1762,10 @@ class LimitApp:
                             controls=[
                                 ft.Row(
                                     controls=[
-                                        ft.Text(p["title"], weight=ft.FontWeight.BOLD, size=13),
+                                        ft.Container(
+                                            content=ft.Text(p["title"], weight=ft.FontWeight.BOLD, size=13),
+                                            expand=True,
+                                        ),
                                         ft.Container(
                                             content=ft.Text(f"= {p['result']}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                                             bgcolor=ft.Colors.INDIGO,
@@ -1598,6 +1774,7 @@ class LimitApp:
                                         ),
                                     ],
                                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                    wrap=True,
                                 ),
                                 ft.Text(p["formula"], size=13, color=ft.Colors.PRIMARY, weight=ft.FontWeight.W_600),
                                 ft.Text(p["desc"], size=11, color=ft.Colors.ON_SURFACE_VARIANT),
@@ -1619,6 +1796,7 @@ class LimitApp:
                             spacing=6,
                         ),
                         padding=12,
+                        margin=ft.Margin.only(bottom=8),
                         bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                         border_radius=12,
                         border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
@@ -1686,6 +1864,7 @@ class LimitApp:
                         spacing=4,
                     ),
                     padding=10,
+                    margin=ft.Margin.only(bottom=6),
                     bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                     border_radius=8,
                 )
@@ -1740,10 +1919,37 @@ class LimitApp:
         history_items = []
 
         def clear_history(e):
-            self.history.clear()
-            self.content_container.content = self.build_history_view()
-            self.page.update()
-            self.show_toast("История очищена")
+            def confirm_clear(ev):
+                self.history.clear()
+                self.page.pop_dialog()
+                self.content_container.content = self.build_history_view()
+                self.page.update()
+                self.show_toast("История очищена 🗑️")
+
+            def cancel_clear(ev):
+                self.page.pop_dialog()
+
+            dialog = ft.AlertDialog(
+                title=ft.Row(
+                    controls=[
+                        ft.Icon(ft.Icons.DELETE_SWEEP, color=ft.Colors.ERROR, size=20),
+                        ft.Text("Очистить историю?", weight=ft.FontWeight.BOLD, size=16),
+                    ],
+                    spacing=8,
+                    tight=True,
+                ),
+                content=ft.Text("Все сохраненные вычисления будут удалены из истории.", size=13),
+                actions=[
+                    ft.TextButton("Отмена", on_click=cancel_clear),
+                    ft.FilledButton(
+                        "Очистить",
+                        style=ft.ButtonStyle(bgcolor=ft.Colors.ERROR),
+                        on_click=confirm_clear,
+                    ),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            self.page.show_dialog(dialog)
 
         def set_history_filter(val: str):
             self.history_filter = val
@@ -1752,7 +1958,7 @@ class LimitApp:
 
         clear_btn = ft.OutlinedButton(
             content=ft.Row(
-                controls=[ft.Icon(ft.Icons.DELETE_SWEEP, size=16), ft.Text("Очистить", size=12)],
+                controls=[ft.Icon(ft.Icons.DELETE_SWEEP, size=15), ft.Text("Очистить", size=12)],
                 spacing=4,
                 tight=True,
             ),
@@ -1825,6 +2031,7 @@ class LimitApp:
                 self.point_input.value = it["point"]
                 self.dir_dropdown.value = it["dir"]
                 self.update_live_preview()
+                self.update_chip_highlights()
                 self.nav_bar.selected_index = 0
                 self.content_container.content = self.calc_view
                 self.page.update()
@@ -1843,13 +2050,17 @@ class LimitApp:
                 on_click=lambda e, it=item: toggle_item_fav(e, it),
             )
 
+            res_display = item["result"]
+            if not res_display.startswith("✨"):
+                res_display = f"= {res_display}"
+
             history_items.append(
                 ft.Container(
                     content=ft.Row(
                         controls=[
                             ft.Column(
                                 controls=[
-                                    ft.Text(f"lim ({d_label}) [{item['expr']}]", weight=ft.FontWeight.BOLD, size=13),
+                                    ft.Text(f"lim ({d_label}) [{item['expr']}]", weight=ft.FontWeight.BOLD, size=13, overflow=ft.TextOverflow.ELLIPSIS, max_lines=2),
                                     ft.Text(f"Время: {item.get('time', '--:--')}", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
                                 ],
                                 spacing=2,
@@ -1858,7 +2069,7 @@ class LimitApp:
                             ft.Row(
                                 controls=[
                                     ft.Container(
-                                        content=ft.Text(f"= {item['result']}", weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.PRIMARY),
+                                        content=ft.Text(res_display, weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.PRIMARY),
                                         padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                                         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                                         border_radius=6,
@@ -2031,7 +2242,7 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                                        ft.Text("Ключевые возможности v1.5.0 (Полный релиз)", weight=ft.FontWeight.BOLD, size=15),
+                                        ft.Text("Ключевые возможности v1.5.0", weight=ft.FontWeight.BOLD, size=15),
                                     ],
                                     spacing=8,
                                     tight=True,
