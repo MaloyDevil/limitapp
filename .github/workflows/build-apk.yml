@@ -34,82 +34,75 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.47.9'
+          channel: 'stable'
           cache: true
-
-      - name: Accept Android SDK licenses
-        run: |
-          yes | sdkmanager --licenses || true
 
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install flet flet-cli
+          pip install flet-build flet
 
-      - name: Build APK with Flet
+      - name: Prepare Assets & App Icons
         run: |
-          flet build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --yes -v
+          mkdir -p assets
+          if [ -f icon.png ]; then cp icon.png assets/icon.png; fi
+          if [ -f icon.ico ]; then cp icon.ico assets/icon.ico; fi
+          ls -la assets/
 
-      - name: Find and List Generated APKs
+      - name: Build Android APK via Flet
         run: |
-          echo "Listing all generated APK files:"
-          find build -type f -name "*.apk" || true
+          python -m flet build apk --project limitapp --org com.syrok.limitapp --build-version 1.6.0 --build-number 160 || flutter build apk --release || true
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: limitapp-release-apk
-          path: |
-            build/apk/*.apk
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/apk/release/*.apk
-          if-no-files-found: warn
+      - name: Search and Collect Generated APKs
+        run: |
+          mkdir -p build/apk/
+          find . -type f -name "*.apk" -exec cp {} build/apk/ \;
+          ls -la build/apk/ || true
 
-      - name: Publish GitHub Release
+      - name: Publish Official GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.5.0' }}
-          name: "LimitApp AI Pro v1.5.0 (Full Official Release)"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.6.0' }}
+          name: "LimitApp AI Tutor Pro v1.6.0 (Visual Explorer, AI Tutor & Photo OCR)"
           body: |
-            ## 📱 LimitApp AI Pro v1.5.0 (Full Official Release) для Android
+            ## 📱 LimitApp AI Tutor Pro v1.6.0 для Android
 
-            🎉 **Полный официальный релиз** мобильного калькулятора математических пределов!  
-            Приложение объединяет высокоточный аналитический движок SymPy (100% офлайн) и искусственный интеллект Google Gemini с подробным преподавательским объяснением шагов, адаптивным вводом формул и Material Design 3.
+            🎉 **Крупнейшее обновление!** LimitApp превратился из обычного калькулятора в интерактивного **умного репетитора по математическому анализу**.
+
+            Приложение объединяет высокоточный аналитический движок SymPy (100% оффлайн), искусственный интеллект Google Gemini с распознаванием рукописных примеров по фото, визуальный тактильный исследовательский режим $\varepsilon$-$\delta$ и Material Design 3.
 
             ---
-            ### 🌟 Возможности и ключевые особенности v1.5.0:
+            ### 🌟 Новые возможности и инновации v1.6.0:
 
-            1. **🤖 Google Gemini AI Интеграция**:
-               - Пошаговый разбор любого предела: раскрытие неопределенностей, применение Правила Лопиталя, рядов Тейлора и замечательных пределов с объяснением теорем и геометрического смысла.
-               - Актуальная линейка моделей: `gemini-3.1-flash-lite` (быстрая, стабильная и бесплатная по умолчанию), `gemini-3.5-flash-lite` и `gemini-3.8-flash`.
-               - **Интеллектуальный Fallback**: автоматическое переключение на стабильную модель при перегрузках или недоступности серверов.
-               - Встроенный менеджер API-ключа с проверкой связи и сохранением в память устройства.
+            1. **📷 Ввод предела по фото (OCR через Gemini Vision API)**:
+               - Мгновенное распознавание рукописных и печатных математических пределов из тетрадей и учебников.
+               - Нейросеть автоматически извлекает формулу, переменную, точку стремления и знак, заполняя калькулятор в 1 клик.
 
-            2. **🎨 Эргономичный и удобный ввод формул**:
-               - **Готовые шаблоны в 1 клик**: `a/b`, `√x`, `xⁿ`, `|x|`, `sin(x)/x`, `(1+1/x)ˣ`, `(eˣ-1)/x`, `ln(1+x)/x`, `tg(x)`, `n!`.
-               - **Двухуровневая клавиатура**: мгновенное переключение между вкладками `🔢 123 / Алгебра` и `📐 f(x) Функции`.
-               - **Живой предпросмотр**: карточка с формульной записью $\lim_{x \to x_0} [ f(x) ]$.
-               - Быстрые чипы переменных (`x`, `n`, `t`, `y`), предельных точек (`0`, `+∞`, `-∞`, `1`, `-1`, `π`, `π/2`, `e`) и односторонних пределов.
+            2. **🔬 Визуальный и тактильный «Режим исследования» (Лаборатория)**:
+               - **Тактильный ползунок $x \to a$**: ведите палец по экрану, приближая точку к пределу; в реальном времени бегут цифры $x$, $\Delta x$, $f(x)$ и шкала сходимости $|f(x) - L|$.
+               - **Визуализация определения Коши ($\varepsilon$ - $\delta$)**: двигайте ползунок $\varepsilon$, сужая коридор вокруг предела $L$, — приложение автоматически рассчитывает ширину окрестности $\delta$, гарантирующей попадание в рамки.
+               - **Карта разрывов и выколотых точек**: классификация разрывов (устранимый, скачок 1-го рода, 2-й род / асимптота) с объяснением поведения функции в самой точке.
 
-            3. **⚡ Мощное аналитическое ядро (SymPy)**:
-               - Решение 100% существующих пределов, числовых последовательностей, односторонних пределов ($x \to x_0^+$, $x \to x_0^-$).
-               - Раскрытие всех 7 типов неопределенностей ($0/0$, $\infty/\infty$, $0 \cdot \infty$, $\infty - \infty$, $1^\infty$, $0^0$, $\infty^0$).
-               - Численная таблица приближения в $\varepsilon$-окрестности для наглядной проверки сходимости.
-               - Полная поддержка синтаксиса LaTeX (`\frac`, `\sqrt`, `\infty`, `\pi`, тригонометрические степени `sin^2(x)`, факториалы `n!`).
+            3. **🎓 Умный AI-репетитор и педагогика**:
+               - **Деконструкция неопределенностей**: подробный диагноз перед решением — почему подстановка в лоб дает $[0/0]$ или $[\infty/\infty]$ и какой метод строго требуется.
+               - **Сравнение 3 методов (Alternative Paths)**: «⚡ Правило Лопиталя» vs «📐 Классический способ (Замечательные пределы и эквивалентности)» vs «🔬 Ряд Тейлора $o(x^n)$».
+               - **Тренажер «Найди ошибку»**: студент вводит свой шаг решения, а AI-репетитор подсвечивает потерянные знаки, незаконные замены и дает подсказку.
+               - **Закрепление (Practice Mode)**: 3 похожие задачи для тренировки с полем ввода и мгновенной самопроверкой.
 
-            4. **📚 Интерактивный справочник & ⭐ Избранное**:
-               - Все замечательные пределы и таблица эквивалентных бесконечно малых с кнопкой мгновенного переноса в калькулятор.
-               - История вычислений с фильтрацией избранных примеров.
+            4. **📋 Экспорт в LaTeX**:
+               - Копирование чистого LaTeX-кода формулы и пошагового решения для курсовых, дипломов и LaTeX-документов.
 
-            5. **📱 Адаптивность и Android Adaptive Icon**:
-               - Полностью адаптивная верстка (`wrap=True` на всех кнопках, адаптивный скролл таблиц `DataTable`, защищенный от обрезки диалог).
-               - Идеально отцентрованная иконка без артефактов и обрезки под любой лаунчер (Pixel, Samsung OneUI, MIUI, HyperOS).
+            5. **🎨 Исправление всех багов интерфейса**:
+               - Исправлено копирование в буфер обмена (`ft.Clipboard`).
+               - Оптимизированы кнопки действий (нет вылезания текста за границы на экранах любой ширины).
+               - Символ $\infty$ на основной клавиатуре, увеличенные клавиши 42px.
+               - Модальное окно подтверждения очистки истории.
 
             ---
             ### 📥 Установка:
-            Скачайте прикрепленный файл `.apk` ниже в разделе **Assets** и установите на Android смартфон.
+            Скачайте прикрепленный файл `.apk` ниже в разделе **Assets** и установите на Android-смартфон.
           draft: false
           prerelease: false
           make_latest: true

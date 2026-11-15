@@ -1,12 +1,13 @@
 """
-LimitApp - Мобильный калькулятор математических пределов
+LimitApp - Мобильный калькулятор и умный интерактивный репетитор по математическому анализу
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.5.0 (Full Official Release)
+Версия: 1.6.0 (AI Tutor, Visual Epsilon-Delta Explorer & Photo OCR Release)
 """
 
 import sys
 import os
+import io
 import json
 import random
 import webbrowser
@@ -31,6 +32,7 @@ class LimitApp:
         self.history = []
         self.history_filter = "all"  # "all" or "fav"
         self.handbook_search_query = ""
+        self.handbook_category_filter = "Все"
         self.active_keypad_tab = "basic"  # "basic" or "func"
 
         # Dictionaries to track quick-selector chips for active state highlights
@@ -38,14 +40,17 @@ class LimitApp:
         self.point_chip_widgets = {}
         self.dir_chip_widgets = {}
 
+        # Cached last calculation result
+        self.last_res = None
+
         # Load configuration (Gemini API key & selected model)
         self.gemini_api_key, self.gemini_model = self.load_config()
 
         # Configure window & page
-        self.page.title = "LimitApp | Калькулятор Пределов"
+        self.page.title = "LimitApp | Умный репетитор и калькулятор пределов"
         if hasattr(self.page, "window"):
-            self.page.window.width = 430
-            self.page.window.height = 880
+            self.page.window.width = 440
+            self.page.window.height = 900
             self.page.window.min_width = 360
             self.page.window.min_height = 640
             self.page.window.resizable = True
@@ -59,6 +64,12 @@ class LimitApp:
 
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
+
+        # Services in overlay
+        self.clipboard = ft.Clipboard()
+        self.file_picker = ft.FilePicker(on_result=self.on_photo_file_picked)
+        self.page.overlay.append(self.clipboard)
+        self.page.overlay.append(self.file_picker)
 
         # Live Math preview label
         self.live_preview_text = ft.Text(
@@ -77,7 +88,7 @@ class LimitApp:
             value="sin(x)/x",
             prefix_icon=ft.Icons.FUNCTIONS,
             border=ft.OutlineInputBorder(border_radius=12),
-            autofocus=True,
+            autofocus=False,
             expand=True,
             on_change=self.on_input_changed,
             on_submit=self.on_calculate_click,
@@ -118,11 +129,41 @@ class LimitApp:
         # Result display container
         self.result_container = ft.Column(spacing=12, visible=False)
 
+        # Explorer / Visual Lab Controls
+        self.explorer_slider = ft.Slider(
+            min=-0.5,
+            max=0.5,
+            value=0.05,
+            divisions=100,
+            label="{value}",
+            on_change=self.on_explorer_slider_change,
+        )
+        self.explorer_x_text = ft.Text("x = 0.05", size=13, weight=ft.FontWeight.BOLD)
+        self.explorer_dx_text = ft.Text("Δx = +0.05", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
+        self.explorer_fx_text = ft.Text("f(x) = 0.99958", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY)
+        self.explorer_diff_text = ft.Text("|f(x) - L| = 0.00042", size=12, color=ft.Colors.GREEN_400)
+        self.explorer_convergence_bar = ft.ProgressBar(value=0.95, color=ft.Colors.GREEN_400, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST)
+
+        # Epsilon-Delta Explorer Controls
+        self.eps_slider = ft.Slider(
+            min=0.01,
+            max=0.3,
+            value=0.05,
+            divisions=29,
+            label="{value}",
+            on_change=self.on_eps_slider_change,
+        )
+        self.eps_val_text = ft.Text("ε = 0.05", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.CYAN_400)
+        self.delta_val_text = ft.Text("Рассчитанный δ = 0.5000", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_400)
+        self.corridor_y_text = ft.Text("Коридор по оси Y: [0.95, 1.05]", size=12)
+        self.corridor_x_text = ft.Text("Интервал по оси X: [-0.50, +0.50]", size=12)
+
         # Tab views
         self.calc_view = self.build_calculator_view()
+        self.explorer_view = self.build_explorer_view()
+        self.tutor_view = self.build_tutor_view()
         self.handbook_view = self.build_handbook_view()
         self.history_view = self.build_history_view()
-        self.about_view = self.build_about_view()
 
         # Update active chip highlights
         self.update_chip_highlights()
@@ -134,7 +175,7 @@ class LimitApp:
             padding=ft.Padding.symmetric(horizontal=12, vertical=10),
         )
 
-        # Mobile Bottom Navigation Bar
+        # Mobile Bottom Navigation Bar (5 distinct tabs)
         self.nav_bar = ft.NavigationBar(
             selected_index=0,
             on_change=self.on_nav_change,
@@ -145,6 +186,16 @@ class LimitApp:
                     label="Калькулятор",
                 ),
                 ft.NavigationBarDestination(
+                    icon=ft.Icons.INSIGHTS_OUTLINED,
+                    selected_icon=ft.Icons.INSIGHTS,
+                    label="Лаборатория",
+                ),
+                ft.NavigationBarDestination(
+                    icon=ft.Icons.SCHOOL_OUTLINED,
+                    selected_icon=ft.Icons.SCHOOL,
+                    label="Репетитор",
+                ),
+                ft.NavigationBarDestination(
                     icon=ft.Icons.MENU_BOOK_OUTLINED,
                     selected_icon=ft.Icons.MENU_BOOK,
                     label="Справочник",
@@ -153,11 +204,6 @@ class LimitApp:
                     icon=ft.Icons.HISTORY_OUTLINED,
                     selected_icon=ft.Icons.HISTORY,
                     label="История",
-                ),
-                ft.NavigationBarDestination(
-                    icon=ft.Icons.PERSON_OUTLINED,
-                    selected_icon=ft.Icons.PERSON,
-                    label="Автор",
                 ),
             ],
         )
@@ -199,7 +245,7 @@ class LimitApp:
                 controls=[
                     ft.Text("LimitApp", weight=ft.FontWeight.BOLD, size=18),
                     ft.Container(
-                        content=ft.Text("AI PRO", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                        content=ft.Text("AI TUTOR PRO", size=9, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
                         bgcolor=ft.Colors.INDIGO_600,
                         padding=ft.Padding.symmetric(horizontal=6, vertical=2),
                         border_radius=8,
@@ -208,6 +254,11 @@ class LimitApp:
                 tight=True,
             ),
             actions=[
+                ft.IconButton(
+                    icon=ft.Icons.CAMERA_ALT_OUTLINED,
+                    tooltip="Ввод предела по фото (OCR)",
+                    on_click=self.open_photo_input_dialog,
+                ),
                 ft.IconButton(
                     icon=ft.Icons.CASINO_OUTLINED,
                     tooltip="Случайный пример",
@@ -234,29 +285,31 @@ class LimitApp:
     def load_config(self) -> tuple[str, str]:
         api_key = os.environ.get("GEMINI_API_KEY", "")
         model = gemini_solver.DEFAULT_MODEL
-        if os.path.exists(CONFIG_FILE):
-            try:
+        try:
+            if os.path.exists(CONFIG_FILE):
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                    api_key = cfg.get("gemini_api_key", api_key)
-                    saved_model = cfg.get("gemini_model", model)
-                    known_ids = [m[0] for m in gemini_solver.GEMINI_MODELS]
-                    if saved_model in known_ids:
-                        model = saved_model
-                    else:
-                        model = gemini_solver.DEFAULT_MODEL
-            except Exception:
-                pass
+                    data = json.load(f)
+                    api_key = data.get("gemini_api_key", api_key)
+                    model = data.get("gemini_model", model)
+        except Exception:
+            pass
         return api_key, model
 
     def save_config(self, api_key: str, model: str):
-        self.gemini_api_key = api_key.strip()
-        self.gemini_model = model.strip()
+        self.gemini_api_key = api_key
+        self.gemini_model = model
         try:
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump({"gemini_api_key": self.gemini_api_key, "gemini_model": self.gemini_model}, f, ensure_ascii=False, indent=2)
+                json.dump({"gemini_api_key": api_key, "gemini_model": model}, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
+
+    def copy_to_clipboard(self, text: str, toast_msg: str = "Скопировано в буфер! 📋"):
+        try:
+            self.page.run_task(self.clipboard.set, text)
+            self.show_toast(toast_msg)
+        except Exception:
+            self.show_toast(toast_msg)
 
     def open_gemini_settings(self, e=None):
         api_field = ft.TextField(
@@ -343,7 +396,7 @@ class LimitApp:
                     controls=[
                         ft.Text(
                             "Для автоматического решения пределов с подробным объяснением теорем "
-                            "используется официальный бесплатный API Google Gemini.",
+                            "и распознавания формул по фото используется официальный бесплатный API Google Gemini.",
                             size=12,
                             color=ft.Colors.ON_SURFACE_VARIANT,
                         ),
@@ -379,7 +432,7 @@ class LimitApp:
                     spacing=12,
                     tight=True,
                 ),
-                width=330,
+                width=340,
             ),
             actions=[
                 ft.TextButton("Закрыть", on_click=on_close),
@@ -421,11 +474,13 @@ class LimitApp:
         if idx == 0:
             self.content_container.content = self.calc_view
         elif idx == 1:
-            self.content_container.content = self.build_handbook_view()
+            self.content_container.content = self.build_explorer_view()
         elif idx == 2:
-            self.content_container.content = self.build_history_view()
+            self.content_container.content = self.build_tutor_view()
         elif idx == 3:
-            self.content_container.content = self.build_about_view()
+            self.content_container.content = self.build_handbook_view()
+        elif idx == 4:
+            self.content_container.content = self.build_history_view()
         self.page.update()
 
     def on_input_changed(self, e=None):
@@ -482,6 +537,9 @@ class LimitApp:
         except Exception:
             pass
 
+    # -------------------------------------------------------------
+    # Keyboard & Symbol Insertions
+    # -------------------------------------------------------------
     def insert_symbol(self, sym: str):
         if sym == "CLEAR":
             self.expr_input.value = ""
@@ -518,23 +576,19 @@ class LimitApp:
         self.var_input.value = var
         self.point_input.value = point
         self.dir_dropdown.value = direction
-        self._focus_control(self.expr_input)
         self.update_live_preview()
         self.update_chip_highlights()
         self.show_toast(f"Шаблон вставлен: {expr_template}")
 
     def select_variable(self, v: str):
         self.var_input.value = v
-        # Sequence limits typically tend to infinity
         if v == "n" and self.point_input.value == "0":
             self.point_input.value = "oo"
-        self._focus_control(self.var_input)
         self.update_live_preview()
         self.update_chip_highlights()
 
     def insert_point(self, val: str):
         self.point_input.value = val
-        self._focus_control(self.point_input)
         self.update_live_preview()
         self.update_chip_highlights()
 
@@ -542,14 +596,6 @@ class LimitApp:
         self.dir_dropdown.value = d
         self.update_live_preview()
         self.update_chip_highlights()
-
-    def _focus_control(self, ctrl):
-        try:
-            res = ctrl.focus()
-            if hasattr(res, "close"):
-                res.close()
-        except Exception:
-            pass
 
     def load_random_example(self, e=None):
         all_items = []
@@ -568,7 +614,6 @@ class LimitApp:
         self.result_container.visible = False
         self.update_live_preview()
         self.update_chip_highlights()
-        self.show_toast("Поля очищены")
 
     def make_key(self, code: str, label: str, ktype: str) -> ft.Control:
         if len(label) >= 6:
@@ -620,6 +665,136 @@ class LimitApp:
         )
 
     # -------------------------------------------------------------
+    # Photo / Multimodal OCR Input via Gemini Vision
+    # -------------------------------------------------------------
+    def open_photo_input_dialog(self, e=None):
+        def pick_from_files(ev):
+            self.page.pop_dialog()
+            self.file_picker.pick_files(
+                dialog_title="Выберите фото примера",
+                allowed_extensions=["jpg", "jpeg", "png", "webp"],
+                allow_multiple=False,
+            )
+
+        def pick_sample(ev, sample_expr, sample_var, sample_pt, sample_dir):
+            self.page.pop_dialog()
+            self.expr_input.value = sample_expr
+            self.var_input.value = sample_var
+            self.point_input.value = sample_pt
+            self.dir_dropdown.value = sample_dir
+            self.update_live_preview()
+            self.update_chip_highlights()
+            self.show_toast(f"Образец загружен: {sample_expr}")
+            self.on_calculate_click(None)
+
+        dialog = ft.AlertDialog(
+            title=ft.Row(
+                controls=[
+                    ft.Icon(ft.Icons.CAMERA_ALT, color=ft.Colors.AMBER_400, size=22),
+                    ft.Text("Ввод предела по фото (OCR)", weight=ft.FontWeight.BOLD, size=16),
+                ],
+                spacing=8,
+                tight=True,
+            ),
+            content=ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Text(
+                            "Сфотографируйте рукописный или печатный пример из тетради или учебника. "
+                            "Нейросеть Google Gemini Vision автоматически распознает формулу предела и загрузит её в калькулятор.",
+                            size=12,
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.FilledButton(
+                            content=ft.Row(
+                                controls=[
+                                    ft.Icon(ft.Icons.PHOTO_LIBRARY, size=17),
+                                    ft.Text("Выбрать фото из галереи / файлов", size=13, weight=ft.FontWeight.BOLD),
+                                ],
+                                spacing=8,
+                                tight=True,
+                            ),
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.INDIGO_600,
+                                padding=ft.Padding.symmetric(vertical=12, horizontal=8),
+                            ),
+                            on_click=pick_from_files,
+                        ),
+                        ft.Divider(height=1, thickness=0.5),
+                        ft.Text("Или выберите тестовый рукописный образец:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.OutlinedButton(
+                            content=ft.Text("Образец 1: lim (x → 0) [ sin(3x)/x ]", size=11),
+                            on_click=lambda ev: pick_sample(ev, "sin(3*x)/x", "x", "0", "+-"),
+                        ),
+                        ft.OutlinedButton(
+                            content=ft.Text("Образец 2: lim (x → ∞) [ (1 + 1/x)^x ]", size=11),
+                            on_click=lambda ev: pick_sample(ev, "(1 + 1/x)^x", "x", "oo", "+-"),
+                        ),
+                        ft.OutlinedButton(
+                            content=ft.Text("Образец 3: lim (x → 0) [ (1 - cos(x))/x^2 ]", size=11),
+                            on_click=lambda ev: pick_sample(ev, "(1 - cos(x))/x^2", "x", "0", "+-"),
+                        ),
+                    ],
+                    spacing=10,
+                    tight=True,
+                ),
+                width=340,
+            ),
+            actions=[
+                ft.TextButton("Отмена", on_click=lambda ev: self.page.pop_dialog()),
+            ],
+        )
+        self.page.show_dialog(dialog)
+
+    def on_photo_file_picked(self, e: ft.FilePickerResultEvent):
+        if not e.files or len(e.files) == 0:
+            return
+
+        file_path = e.files[0].path
+        if not file_path or not os.path.exists(file_path):
+            self.show_toast("Не удалось открыть выбранный файл")
+            return
+
+        if not (self.gemini_api_key or "").strip():
+            self.show_toast("Для распознавания фото задайте бесплатный ключ Gemini API")
+            self.open_gemini_settings()
+            return
+
+        self.show_toast("⏳ Gemini Vision анализирует изображение предела...")
+
+        def ocr_worker():
+            try:
+                with open(file_path, "rb") as f:
+                    img_bytes = f.read()
+
+                ext = os.path.splitext(file_path)[1].lower().replace(".", "")
+                mime = "image/png" if ext == "png" else "image/jpeg"
+
+                res = gemini_solver.recognize_limit_from_image(
+                    image_bytes=img_bytes,
+                    mime_type=mime,
+                    api_key=self.gemini_api_key,
+                    model=self.gemini_model,
+                    timeout=30.0,
+                )
+
+                if res["success"]:
+                    self.expr_input.value = res["expr"]
+                    self.var_input.value = res["var"]
+                    self.point_input.value = res["point"]
+                    self.dir_dropdown.value = res["direction"]
+                    self.update_live_preview()
+                    self.update_chip_highlights()
+                    self.show_toast(f"✨ Распознано: {res['expr']} (x → {res['point']})")
+                    self.on_calculate_click(None)
+                else:
+                    self.show_toast(f"❌ {res.get('error', 'Ошибка распознавания')}")
+            except Exception as ex:
+                self.show_toast(f"Ошибка чтения файла: {str(ex)}")
+
+        self.page.run_thread(ocr_worker)
+
+    # -------------------------------------------------------------
     # Calculator View Builder
     # -------------------------------------------------------------
     def build_calculator_view(self) -> ft.Control:
@@ -667,14 +842,12 @@ class LimitApp:
         )
 
         # 2. Keypad Rows
-        # Tab 1: 🔢 123 / Алгебра
         basic_r1 = [("x", "x", "var"), ("n", "n", "var"), ("(", "(", "op"), (")", ")", "op"), ("CLEAR", "C", "clear")]
         basic_r2 = [("7", "7", "num"), ("8", "8", "num"), ("9", "9", "num"), ("/", "÷", "op"), ("BACK", "⌫", "back")]
         basic_r3 = [("4", "4", "num"), ("5", "5", "num"), ("6", "6", "num"), ("*", "×", "op"), ("^", "^", "op")]
         basic_r4 = [("1", "1", "num"), ("2", "2", "num"), ("3", "3", "num"), ("-", "−", "op"), ("sqrt(", "√", "func")]
         basic_r5 = [("0", "0", "num"), (".", ".", "num"), ("oo", "∞", "var"), ("+", "+", "op"), ("abs(", "|x|", "func")]
 
-        # Tab 2: 📐 f(x) Функции
         func_r1 = [("sin(", "sin", "func"), ("cos(", "cos", "func"), ("tan(", "tg", "func"), ("cot(", "ctg", "func"), ("pi", "π", "var")]
         func_r2 = [("arcsin(", "arcsin", "func"), ("arccos(", "arccos", "func"), ("atan(", "arctg", "func"), ("acot(", "arcctg", "func"), ("e", "e", "var")]
         func_r3 = [("ln(", "ln", "func"), ("lg(", "lg", "func"), ("log(", "log", "func"), ("exp(", "exp", "func"), ("oo", "∞", "var")]
@@ -885,11 +1058,7 @@ class LimitApp:
         def copy_preview_formula(e):
             val = (self.expr_input.value or "").strip()
             if val:
-                try:
-                    ft.Clipboard.set(val)
-                    self.show_toast("Формула скопирована! 📋")
-                except Exception:
-                    pass
+                self.copy_to_clipboard(val, "Формула скопирована! 📋")
 
         # Live Formula Blackboard Card with instant Copy icon
         preview_card = ft.Container(
@@ -901,13 +1070,19 @@ class LimitApp:
                         expand=True,
                     ),
                     ft.IconButton(
+                        icon=ft.Icons.CAMERA_ALT,
+                        icon_size=16,
+                        tooltip="Ввод по фото",
+                        on_click=self.open_photo_input_dialog,
+                    ),
+                    ft.IconButton(
                         icon=ft.Icons.COPY,
                         icon_size=16,
                         tooltip="Скопировать формулу",
                         on_click=copy_preview_formula,
                     ),
                 ],
-                spacing=6,
+                spacing=4,
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             padding=ft.Padding.only(left=12, right=4, top=3, bottom=3),
@@ -939,7 +1114,16 @@ class LimitApp:
                                         controls=[
                                             ft.TextButton(
                                                 content=ft.Row(
-                                                    [ft.Icon(ft.Icons.CASINO_OUTLINED, size=14), ft.Text("Пример", size=11)],
+                                                    [ft.Icon(ft.Icons.CAMERA_ALT, size=13), ft.Text("Фото", size=11)],
+                                                    spacing=3,
+                                                    tight=True,
+                                                ),
+                                                style=ft.ButtonStyle(padding=ft.Padding.symmetric(horizontal=6, vertical=2)),
+                                                on_click=self.open_photo_input_dialog,
+                                            ),
+                                            ft.TextButton(
+                                                content=ft.Row(
+                                                    [ft.Icon(ft.Icons.CASINO_OUTLINED, size=13), ft.Text("Пример", size=11)],
                                                     spacing=3,
                                                     tight=True,
                                                 ),
@@ -948,7 +1132,7 @@ class LimitApp:
                                             ),
                                             ft.TextButton(
                                                 content=ft.Row(
-                                                    [ft.Icon(ft.Icons.CLEAR_ALL, size=14), ft.Text("Очистить", size=11)],
+                                                    [ft.Icon(ft.Icons.CLEAR_ALL, size=13), ft.Text("Очистить", size=11)],
                                                     spacing=3,
                                                     tight=True,
                                                 ),
@@ -1065,7 +1249,6 @@ class LimitApp:
             self.show_toast("Пожалуйста, введите функцию f(x)")
             return
 
-        # Check if user pasted a complete limit notation
         parsed_full = engine.parse_full_limit(raw_expr)
         if parsed_full:
             self.expr_input.value = parsed_full["expr"]
@@ -1138,10 +1321,9 @@ class LimitApp:
             self.page.update()
             return
 
-        # Render successful results
+        self.last_res = res
         self.render_result(res)
 
-        # Add to history
         self.history.insert(0, {
             "id": datetime.now().timestamp(),
             "time": datetime.now().strftime("%H:%M:%S"),
@@ -1207,6 +1389,25 @@ class LimitApp:
             ),
         ]
 
+        # Discontinuity badge in header
+        if res.get("discontinuity"):
+            disc = res["discontinuity"]
+            header_items.append(
+                ft.Container(
+                    content=ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.AUTO_GRAPH, size=15, color=ft.Colors.CYAN_400),
+                            ft.Text(f"Тип точки: {disc['tag']}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.CYAN_300),
+                        ],
+                        spacing=6,
+                        tight=True,
+                    ),
+                    bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                    padding=ft.Padding.symmetric(horizontal=10, vertical=4),
+                    border_radius=8,
+                )
+            )
+
         if res.get("indeterminacy"):
             header_items.append(
                 ft.Container(
@@ -1252,11 +1453,17 @@ class LimitApp:
                 full_text += f"Тип: {res['indeterminacy']}\n"
             for step in res.get("steps", []):
                 full_text += f"\n{step['title']}:\n{step['desc']}\n"
-            try:
-                ft.Clipboard.set(full_text)
-                self.show_toast("Решение скопировано в буфер!")
-            except Exception:
-                self.show_toast("Текст готов!")
+            self.copy_to_clipboard(full_text, "Решение скопировано в буфер!")
+
+        def copy_latex(e):
+            latex_code = res.get("latex", "")
+            if latex_code:
+                self.copy_to_clipboard(latex_code, "LaTeX код скопирован! 📋")
+
+        def open_in_lab(e):
+            self.nav_bar.selected_index = 1
+            self.content_container.content = self.build_explorer_view()
+            self.page.update()
 
         def toggle_favorite(e):
             if self.history:
@@ -1274,20 +1481,31 @@ class LimitApp:
 
         copy_btn = ft.OutlinedButton(
             content=ft.Row(
-                controls=[ft.Icon(ft.Icons.COPY, size=15), ft.Text("Скопировать", size=12)],
-                spacing=5,
+                controls=[ft.Icon(ft.Icons.COPY, size=14), ft.Text("Текст", size=11)],
+                spacing=4,
                 tight=True,
             ),
             on_click=copy_result,
         )
 
-        ai_deep_btn = ft.FilledTonalButton(
+        latex_btn = ft.OutlinedButton(
             content=ft.Row(
-                controls=[ft.Icon(ft.Icons.AUTO_AWESOME, size=15, color=ft.Colors.AMBER_400), ft.Text("Объяснить с ИИ", size=12)],
-                spacing=5,
+                controls=[ft.Icon(ft.Icons.CODE, size=14), ft.Text("LaTeX", size=11)],
+                spacing=4,
                 tight=True,
             ),
-            on_click=self.on_gemini_solve_click,
+            tooltip="Скопировать чистый LaTeX код формулы",
+            on_click=copy_latex,
+        )
+
+        lab_btn = ft.FilledTonalButton(
+            content=ft.Row(
+                controls=[ft.Icon(ft.Icons.INSIGHTS, size=14, color=ft.Colors.CYAN_400), ft.Text("Лаборатория", size=11)],
+                spacing=4,
+                tight=True,
+            ),
+            tooltip="Исследовать предел в интерактивном режиме с ползунком и ε-δ",
+            on_click=open_in_lab,
         )
 
         header_items.append(
@@ -1295,7 +1513,7 @@ class LimitApp:
                 controls=[
                     fav_btn,
                     ft.Row(
-                        controls=[copy_btn, ai_deep_btn],
+                        controls=[latex_btn, copy_btn, lab_btn],
                         spacing=6,
                         wrap=True,
                         tight=True,
@@ -1315,7 +1533,81 @@ class LimitApp:
         )
         self.result_container.controls.append(main_card)
 
-        # Step-by-Step Breakdown Cards
+        # 2. Pedagogical Diagnosis of Indeterminacy Card
+        if res.get("diagnosis") and res["diagnosis"].get("has_indet"):
+            diag = res["diagnosis"]
+            diag_card = ft.Card(
+                content=ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Row(
+                                controls=[
+                                    ft.Icon(ft.Icons.HEALTH_AND_SAFETY, color=ft.Colors.AMBER_400, size=18),
+                                    ft.Text("Диагноз неопределенности (Матанализ)", weight=ft.FontWeight.BOLD, size=14),
+                                ],
+                                spacing=8,
+                                tight=True,
+                            ),
+                            ft.Text(diag["diagnosis"], size=12),
+                            ft.Divider(height=1, thickness=0.5),
+                            ft.Row(
+                                controls=[
+                                    ft.Icon(ft.Icons.LIGHTBULB_OUTLINE, size=16, color=ft.Colors.GREEN_400),
+                                    ft.Text(f"Рекомендованный метод: {diag['recommendation']}", size=11, color=ft.Colors.GREEN_300, weight=ft.FontWeight.W_500),
+                                ],
+                                spacing=6,
+                                tight=True,
+                            ),
+                        ],
+                        spacing=8,
+                    ),
+                    padding=14,
+                ),
+                elevation=2,
+            )
+            self.result_container.controls.append(diag_card)
+
+        # 3. Alternative Paths & Methods Comparison
+        if res.get("methods"):
+            method_tiles = []
+            for m in res["methods"]:
+                method_tiles.append(
+                    ft.ExpansionTile(
+                        title=ft.Text(m["name"], weight=ft.FontWeight.BOLD, size=13),
+                        leading=ft.Icon(ft.Icons.PLAY_ARROW_ROUNDED, color=ft.Colors.INDIGO_ACCENT),
+                        controls=[
+                            ft.Container(
+                                content=ft.Text(m["desc"], size=12),
+                                padding=ft.Padding.only(left=16, right=16, bottom=12),
+                            )
+                        ],
+                    )
+                )
+
+            methods_card = ft.Card(
+                content=ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Row(
+                                controls=[
+                                    ft.Icon(ft.Icons.ALT_ROUTE, color=ft.Colors.INDIGO_ACCENT, size=18),
+                                    ft.Text("Сравнение методов решения (Alternative Paths)", weight=ft.FontWeight.BOLD, size=14),
+                                ],
+                                spacing=8,
+                                tight=True,
+                            ),
+                            ft.Text("Один предел можно решить несколькими способами. Выберите подходящий:", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Column(controls=method_tiles, spacing=2),
+                        ],
+                        spacing=8,
+                    ),
+                    padding=12,
+                ),
+                elevation=2,
+            )
+            self.result_container.controls.append(methods_card)
+
+        # 4. Step-by-Step Breakdown Cards
         if res.get("steps"):
             step_controls = []
             for s in res["steps"]:
@@ -1357,7 +1649,7 @@ class LimitApp:
             )
             self.result_container.controls.append(steps_card)
 
-        # Neighborhood Convergence Table
+        # 5. Neighborhood Convergence Table
         table_rows = res.get("table", [])
         if table_rows:
             table_controls = [
@@ -1417,13 +1709,11 @@ class LimitApp:
             self.show_toast("Пожалуйста, введите функцию f(x)")
             return
 
-        # Check API key
         if not (self.gemini_api_key or "").strip():
             self.show_toast("Введите бесплатный ключ Gemini API для решения через ИИ")
             self.open_gemini_settings()
             return
 
-        # Check full limit expression syntax
         parsed_full = engine.parse_full_limit(raw_expr)
         if parsed_full:
             self.expr_input.value = parsed_full["expr"]
@@ -1438,7 +1728,6 @@ class LimitApp:
         point_text = self.point_input.value.strip() if self.point_input.value else "0"
         dir_val = self.dir_dropdown.value or "+-"
 
-        # Show loading indicator in result container
         self.result_container.visible = True
         self.result_container.controls = [
             ft.Card(
@@ -1468,7 +1757,6 @@ class LimitApp:
         ]
         self.page.update()
 
-        # Run async Gemini query via thread
         def gemini_worker():
             res = gemini_solver.solve_limit_with_gemini(
                 expr=expr_text,
@@ -1496,7 +1784,6 @@ class LimitApp:
         lim_title = f"lim ({var} → {pt_display}{dir_char}) [ {expr} ]"
 
         if not res["success"]:
-            # Error card
             error_card = ft.Card(
                 content=ft.Container(
                     content=ft.Column(
@@ -1543,15 +1830,10 @@ class LimitApp:
             self.page.update()
             return
 
-        # Success card with AI explanations
         ai_text = res.get("text", "")
 
         def copy_ai_text(e):
-            try:
-                ft.Clipboard.set(ai_text)
-                self.show_toast("Объяснение Gemini AI скопировано в буфер!")
-            except Exception:
-                self.show_toast("Текст скопирован!")
+            self.copy_to_clipboard(ai_text, "Объяснение Gemini AI скопировано в буфер!")
 
         ai_header = ft.Row(
             controls=[
@@ -1622,7 +1904,7 @@ class LimitApp:
                         ft.Divider(height=1, thickness=0.5),
                         ai_toolbar,
                     ],
-                    spacing=10,
+                    spacing=12,
                 ),
                 padding=16,
             ),
@@ -1631,7 +1913,6 @@ class LimitApp:
 
         self.result_container.controls.append(ai_card)
 
-        # Add to history
         self.history.insert(0, {
             "id": datetime.now().timestamp(),
             "time": datetime.now().strftime("%H:%M:%S"),
@@ -1646,6 +1927,491 @@ class LimitApp:
             self.history.pop()
 
         self.page.update()
+
+    # -------------------------------------------------------------
+    # Visual Explorer & Epsilon-Delta Laboratory
+    # -------------------------------------------------------------
+    def on_explorer_slider_change(self, e):
+        expr_str = self.expr_input.value.strip() or "sin(x)/x"
+        var_str = self.var_input.value.strip() or "x"
+        point_str = self.point_input.value.strip() or "0"
+
+        try:
+            val_delta = float(self.explorer_slider.value)
+            pt_val = 0.0
+            if point_str not in ("oo", "-oo"):
+                try:
+                    pt_val = float(point_str)
+                except Exception:
+                    pt_val = 0.0
+
+            x_curr = pt_val + val_delta
+            var = engine.sp.Symbol(var_str)
+            expr = engine.parse_math(expr_str, var)
+            point = engine.parse_math(point_str, var)
+
+            data = engine.evaluate_point_live(expr, var, point, x_curr)
+            if data["success"]:
+                sign = "+" if data["dx"] >= 0 else ""
+                self.explorer_x_text.value = f"x = {data['x']:.5f}"
+                self.explorer_dx_text.value = f"Δx = {sign}{data['dx']:.5f}"
+                self.explorer_fx_text.value = f"f(x) = {data['fx']}"
+                self.explorer_diff_text.value = f"|f(x) - L| = {data['diff']}"
+
+                # Progress gauge
+                try:
+                    d_float = float(data['diff'])
+                    val_progress = max(0.0, min(1.0, 1.0 / (1.0 + d_float * 5.0)))
+                    self.explorer_convergence_bar.value = val_progress
+                except Exception:
+                    self.explorer_convergence_bar.value = 0.5
+            self.page.update()
+        except Exception:
+            pass
+
+    def on_eps_slider_change(self, e):
+        expr_str = self.expr_input.value.strip() or "sin(x)/x"
+        var_str = self.var_input.value.strip() or "x"
+        point_str = self.point_input.value.strip() or "0"
+
+        try:
+            eps_val = float(self.eps_slider.value)
+            var = engine.sp.Symbol(var_str)
+            expr = engine.parse_math(expr_str, var)
+            point = engine.parse_math(point_str, var)
+
+            res = engine.compute_epsilon_delta(expr, var, point, eps_val)
+            if res["success"]:
+                self.eps_val_text.value = f"ε = {res['epsilon']:.4f}"
+                self.delta_val_text.value = f"Рассчитанный δ = {res['delta']:.5f}"
+                self.corridor_y_text.value = f"Коридор по оси Y: [{res['corridor_y'][0]}, {res['corridor_y'][1]}]"
+                self.corridor_x_text.value = f"Интервал по оси X: [{res['corridor_x'][0]}, {res['corridor_x'][1]}]"
+            self.page.update()
+        except Exception:
+            pass
+
+    def build_explorer_view(self) -> ft.Control:
+        expr_str = self.expr_input.value.strip() or "sin(x)/x"
+        var_str = self.var_input.value.strip() or "x"
+        point_str = self.point_input.value.strip() or "0"
+
+        # Evaluate discontinuity analysis
+        disc_info = None
+        try:
+            var = engine.sp.Symbol(var_str)
+            expr = engine.parse_math(expr_str, var)
+            point = engine.parse_math(point_str, var)
+            disc_info = engine.classify_discontinuity(expr, var, point)
+        except Exception:
+            pass
+
+        # Card 1: Tactile Slider Explorer
+        tactile_card = ft.Card(
+            content=ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.TOUCH_APP, color=ft.Colors.CYAN_400, size=20),
+                                ft.Text("Тактильный ползунок приближения (x → x₀)", weight=ft.FontWeight.BOLD, size=15),
+                            ],
+                            spacing=8,
+                            tight=True,
+                        ),
+                        ft.Text("Двигайте ползунок пальцем, чтобы физически приближаться к предельной точке слева и справа:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                        self.explorer_slider,
+                        ft.Container(
+                            content=ft.Column(
+                                controls=[
+                                    ft.Row(
+                                        controls=[self.explorer_x_text, self.explorer_dx_text],
+                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                    ),
+                                    ft.Row(
+                                        controls=[self.explorer_fx_text, self.explorer_diff_text],
+                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                    ),
+                                    ft.Container(height=4),
+                                    ft.Row(
+                                        controls=[
+                                            ft.Text("Сходимость к пределу:", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
+                                            ft.Container(content=self.explorer_convergence_bar, expand=True),
+                                        ],
+                                        spacing=8,
+                                    ),
+                                ],
+                                spacing=4,
+                            ),
+                            padding=12,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                            border_radius=10,
+                            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                        ),
+                    ],
+                    spacing=10,
+                ),
+                padding=16,
+            ),
+            elevation=2,
+        )
+
+        # Card 2: Epsilon-Delta Rigorous Visualizer
+        eps_card = ft.Card(
+            content=ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.SHIELD_OUTLINED, color=ft.Colors.AMBER_400, size=20),
+                                ft.Text("Визуализация определения Коши (ε - δ)", weight=ft.FontWeight.BOLD, size=15),
+                            ],
+                            spacing=8,
+                            tight=True,
+                        ),
+                        ft.Text("Сужайте коридор ε вокруг предела L — приложение автоматически рассчитывает допустимую ширину δ окрестности x₀:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                        self.eps_slider,
+                        ft.Container(
+                            content=ft.Column(
+                                controls=[
+                                    ft.Row(
+                                        controls=[self.eps_val_text, self.delta_val_text],
+                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                                    ),
+                                    self.corridor_y_text,
+                                    self.corridor_x_text,
+                                    ft.Container(height=2),
+                                    ft.Row(
+                                        controls=[
+                                            ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.GREEN_400, size=15),
+                                            ft.Text("Вся δ-окрестность строго лежит внутри коридора ε!", size=11, color=ft.Colors.GREEN_400, weight=ft.FontWeight.BOLD),
+                                        ],
+                                        spacing=6,
+                                        tight=True,
+                                    ),
+                                ],
+                                spacing=4,
+                            ),
+                            padding=12,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                            border_radius=10,
+                            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                        ),
+                    ],
+                    spacing=10,
+                ),
+                padding=16,
+            ),
+            elevation=2,
+        )
+
+        # Card 3: Discontinuity Analysis Card
+        disc_controls = [
+            ft.Row(
+                controls=[
+                    ft.Icon(ft.Icons.TIMELINE, color=ft.Colors.PURPLE_400, size=20),
+                    ft.Text("Анализ разрыва и выколотой точки", weight=ft.FontWeight.BOLD, size=15),
+                ],
+                spacing=8,
+                tight=True,
+            ),
+        ]
+
+        if disc_info:
+            disc_controls.extend([
+                ft.Container(
+                    content=ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.INFO_OUTLINE, size=16, color=ft.Colors.WHITE),
+                            ft.Text(disc_info["type"], weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.WHITE),
+                        ],
+                        spacing=6,
+                        tight=True,
+                    ),
+                    padding=ft.Padding.symmetric(horizontal=10, vertical=5),
+                    bgcolor=ft.Colors.INDIGO_700,
+                    border_radius=8,
+                ),
+                ft.Text(disc_info["desc"], size=12),
+                ft.Divider(height=1, thickness=0.5),
+                ft.Text(f"Значение в самой точке f({point_str}): {disc_info['val']}", size=12, weight=ft.FontWeight.W_600),
+            ])
+
+        # Quick Discontinuity presets
+        def load_disc_sample(e, ex, v, pt):
+            self.expr_input.value = ex
+            self.var_input.value = v
+            self.point_input.value = pt
+            self.dir_dropdown.value = "+-"
+            self.update_live_preview()
+            self.update_chip_highlights()
+            self.content_container.content = self.build_explorer_view()
+            self.page.update()
+
+        disc_controls.extend([
+            ft.Text("Тестовые примеры разрывов для исследования:", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Row(
+                controls=[
+                    ft.OutlinedButton(
+                        content=ft.Text("Выколотая точка: sin(x)/x", size=11),
+                        on_click=lambda ev: load_disc_sample(ev, "sin(x)/x", "x", "0"),
+                    ),
+                    ft.OutlinedButton(
+                        content=ft.Text("Скачок: |x|/x", size=11),
+                        on_click=lambda ev: load_disc_sample(ev, "abs(x)/x", "x", "0"),
+                    ),
+                    ft.OutlinedButton(
+                        content=ft.Text("Асимптота: 1/x", size=11),
+                        on_click=lambda ev: load_disc_sample(ev, "1/x", "x", "0"),
+                    ),
+                ],
+                wrap=True,
+                spacing=6,
+            ),
+        ])
+
+        disc_card = ft.Card(
+            content=ft.Container(
+                content=ft.Column(controls=disc_controls, spacing=10),
+                padding=16,
+            ),
+            elevation=2,
+        )
+
+        return ft.ListView(
+            expand=True,
+            spacing=12,
+            controls=[
+                tactile_card,
+                eps_card,
+                disc_card,
+            ],
+        )
+
+    # -------------------------------------------------------------
+    # AI Tutor & Practice Trainer View
+    # -------------------------------------------------------------
+    def build_tutor_view(self) -> ft.Control:
+        expr_str = self.expr_input.value.strip() or "sin(x)/x"
+        var_str = self.var_input.value.strip() or "x"
+        point_str = self.point_input.value.strip() or "0"
+
+        # 1. AI Solution Step Checker ("Find the mistake")
+        user_step_input = ft.TextField(
+            label="Ваш ход решения или предположение",
+            hint_text="Например: 'Я заменил sin(x) на x и получил 1' или 'Взял производные...'",
+            multiline=True,
+            min_lines=2,
+            max_lines=4,
+            border=ft.OutlineInputBorder(border_radius=12),
+        )
+
+        feedback_container = ft.Column(spacing=6)
+
+        def on_verify_step(e):
+            step_text = user_step_input.value.strip()
+            if not step_text:
+                self.show_toast("Введите ход решения для проверки")
+                return
+
+            if not (self.gemini_api_key or "").strip():
+                self.show_toast("Введите бесплатный ключ Gemini API для работы репетитора")
+                self.open_gemini_settings()
+                return
+
+            feedback_container.controls = [
+                ft.Row(
+                    controls=[
+                        ft.ProgressRing(width=16, height=16, stroke_width=2),
+                        ft.Text("AI-Репетитор анализирует ваш ход решения...", size=12, italic=True),
+                    ],
+                    spacing=8,
+                )
+            ]
+            self.page.update()
+
+            def tutor_worker():
+                res = gemini_solver.check_user_solution(
+                    expr=expr_str,
+                    var=var_str,
+                    point=point_str,
+                    direction="+-",
+                    user_solution_step=step_text,
+                    api_key=self.gemini_api_key,
+                    model=self.gemini_model,
+                )
+                if res["success"]:
+                    feedback_container.controls = [
+                        ft.Container(
+                            content=ft.Column(
+                                controls=[
+                                    ft.Row(
+                                        controls=[
+                                            ft.Icon(ft.Icons.SCHOOL, color=ft.Colors.AMBER_400, size=18),
+                                            ft.Text("Отзыв AI-Репетитора", weight=ft.FontWeight.BOLD, size=13),
+                                        ],
+                                        spacing=6,
+                                        tight=True,
+                                    ),
+                                    ft.Markdown(res["review"]),
+                                ],
+                                spacing=6,
+                            ),
+                            padding=12,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                            border_radius=10,
+                            border=ft.Border.all(1, ft.Colors.PRIMARY),
+                        )
+                    ]
+                else:
+                    feedback_container.controls = [
+                        ft.Text(f"❌ {res.get('error')}", color=ft.Colors.RED_400, size=12)
+                    ]
+                self.page.update()
+
+            self.page.run_thread(tutor_worker)
+
+        tutor_step_card = ft.Card(
+            content=ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.PSYCHOLOGY, color=ft.Colors.AMBER_400, size=20),
+                                ft.Text("Тренажер: Найди ошибку в моем решении", weight=ft.FontWeight.BOLD, size=15),
+                            ],
+                            spacing=8,
+                            tight=True,
+                        ),
+                        ft.Text(f"Текущая задача: lim ({var_str} → {point_str}) [ {expr_str} ]", size=12, color=ft.Colors.PRIMARY, weight=ft.FontWeight.BOLD),
+                        ft.Text("Опишите свой шаг или ответ своими словами, а AI-репетитор проверит математическую строгость и укажет на потерянные знаки:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                        user_step_input,
+                        ft.FilledButton(
+                            content=ft.Row(
+                                controls=[
+                                    ft.Icon(ft.Icons.AUTO_AWESOME, size=16),
+                                    ft.Text("Проверить решение с репетитором", size=13, weight=ft.FontWeight.BOLD),
+                                ],
+                                spacing=8,
+                                tight=True,
+                            ),
+                            style=ft.ButtonStyle(bgcolor=ft.Colors.INDIGO_600),
+                            on_click=on_verify_step,
+                        ),
+                        feedback_container,
+                    ],
+                    spacing=10,
+                ),
+                padding=16,
+            ),
+            elevation=2,
+        )
+
+        # 2. Practice Mode: Similar Problems Generator
+        practice_tasks = []
+        try:
+            var = engine.sp.Symbol(var_str)
+            expr = engine.parse_math(expr_str, var)
+            point = engine.parse_math(point_str, var)
+            indet = engine.detect_indeterminacy(expr, var, point)
+            practice_tasks = engine.get_practice_problems(indet, expr_str, var_str)
+        except Exception:
+            practice_tasks = engine.get_practice_problems(None, expr_str, var_str)
+
+        practice_controls = [
+            ft.Row(
+                controls=[
+                    ft.Icon(ft.Icons.FITNESS_CENTER, color=ft.Colors.GREEN_400, size=20),
+                    ft.Text("Закрепление: 3 похожие задачи для тренировки", weight=ft.FontWeight.BOLD, size=15),
+                ],
+                spacing=8,
+                tight=True,
+            ),
+            ft.Text("Решите примеры самостоятельно и введите ответ для моментальной самопроверки:", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+        ]
+
+        for i, task in enumerate(practice_tasks, 1):
+            ans_input = ft.TextField(
+                hint_text="Ваш ответ",
+                width=110,
+                dense=True,
+                border=ft.OutlineInputBorder(border_radius=8),
+            )
+            result_label = ft.Text("", size=12, weight=ft.FontWeight.BOLD)
+
+            def check_ans(ev, t=task, inp=ans_input, lbl=result_label):
+                u_val = (inp.value or "").strip().lower().replace(" ", "")
+                c_val = t["answer"].strip().lower().replace(" ", "")
+                if u_val == c_val:
+                    lbl.value = "Верно! 🎉"
+                    lbl.color = ft.Colors.GREEN_400
+                else:
+                    lbl.value = f"Неверно (ответ {t['answer']})"
+                    lbl.color = ft.Colors.RED_400
+                self.page.update()
+
+            def load_task_into_calc(ev, t=task):
+                self.expr_input.value = t["expr"]
+                self.var_input.value = "x"
+                self.point_input.value = t["point"]
+                self.dir_dropdown.value = "+-"
+                self.update_live_preview()
+                self.update_chip_highlights()
+                self.nav_bar.selected_index = 0
+                self.content_container.content = self.calc_view
+                self.page.update()
+                self.on_calculate_click(None)
+
+            practice_controls.append(
+                ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Row(
+                                controls=[
+                                    ft.Text(f"Задача #{i}: lim (x → {task['point']}) [ {task['expr']} ]", weight=ft.FontWeight.BOLD, size=13),
+                                    ft.IconButton(
+                                        icon=ft.Icons.PLAY_ARROW,
+                                        icon_size=18,
+                                        tooltip="Решить в калькуляторе",
+                                        on_click=lambda ev, t=task: load_task_into_calc(ev, t),
+                                    ),
+                                ],
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                            ),
+                            ft.Text(f"Подсказка: {task['tip']}", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Row(
+                                controls=[
+                                    ans_input,
+                                    ft.OutlinedButton("Проверить", on_click=lambda ev, t=task, inp=ans_input, lbl=result_label: check_ans(ev, t, inp, lbl)),
+                                    result_label,
+                                ],
+                                spacing=8,
+                            ),
+                        ],
+                        spacing=6,
+                    ),
+                    padding=12,
+                    bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                    border_radius=10,
+                    border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
+                )
+            )
+
+        practice_card = ft.Card(
+            content=ft.Container(
+                content=ft.Column(controls=practice_controls, spacing=10),
+                padding=16,
+            ),
+            elevation=2,
+        )
+
+        return ft.ListView(
+            expand=True,
+            spacing=12,
+            controls=[
+                tutor_step_card,
+                practice_card,
+            ],
+        )
 
     # -------------------------------------------------------------
     # Handbook View
@@ -1667,6 +2433,11 @@ class LimitApp:
         self.content_container.content = self.build_handbook_view()
         self.page.update()
 
+    def set_handbook_category(self, cat_name: str):
+        self.handbook_category_filter = cat_name
+        self.content_container.content = self.build_handbook_view()
+        self.page.update()
+
     def build_handbook_view(self) -> ft.Control:
         search_field = ft.TextField(
             hint_text="Поиск формул, пределов, функций...",
@@ -1678,84 +2449,40 @@ class LimitApp:
             on_change=self.on_handbook_search_change,
         )
 
-        items = [search_field]
-        q = self.handbook_search_query
-
-        if q:
-            matched_presets = []
-            for cat in presets.CATEGORIES:
-                for p in cat["items"]:
-                    if q in p["title"].lower() or q in p["formula"].lower() or q in p["desc"].lower() or q in p["expr"].lower():
-                        matched_presets.append((cat["category"], p))
-
-            if matched_presets:
-                items.append(ft.Text(f"Найдено примеров: {len(matched_presets)}", size=12, color=ft.Colors.PRIMARY, weight=ft.FontWeight.BOLD))
-                for cat_name, p in matched_presets:
-                    items.append(
-                        ft.Container(
-                            content=ft.Column(
-                                controls=[
-                                    ft.Row(
-                                        controls=[
-                                            ft.Container(
-                                                content=ft.Text(p["title"], weight=ft.FontWeight.BOLD, size=13),
-                                                expand=True,
-                                            ),
-                                            ft.Container(
-                                                content=ft.Text(f"= {p['result']}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                                                bgcolor=ft.Colors.INDIGO,
-                                                padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-                                                border_radius=6,
-                                            ),
-                                        ],
-                                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                                        wrap=True,
-                                    ),
-                                    ft.Text(p["formula"], size=13, color=ft.Colors.PRIMARY, weight=ft.FontWeight.W_600),
-                                    ft.Text(f"Раздел: {cat_name} • {p['desc']}", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-                                    ft.Row(
-                                        controls=[
-                                            ft.TextButton(
-                                                content=ft.Row(
-                                                    controls=[ft.Icon(ft.Icons.PLAY_ARROW, size=16), ft.Text("Решить в калькуляторе", size=12)],
-                                                    spacing=4,
-                                                    tight=True,
-                                                ),
-                                                on_click=lambda e, pr=p: self.load_preset(pr),
-                                            )
-                                        ],
-                                        alignment=ft.MainAxisAlignment.END,
-                                        tight=True,
-                                    ),
-                                ],
-                                spacing=6,
-                            ),
-                            padding=12,
-                            margin=ft.Margin.only(bottom=8),
-                            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                            border_radius=12,
-                            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-                        )
-                    )
-            else:
-                items.append(
-                    ft.Container(
-                        content=ft.Text(f"По запросу '{q}' ничего не найдено.", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-                        padding=12,
-                        alignment=ft.Alignment.CENTER,
-                    )
+        # Category Filter Chips
+        cat_chips = []
+        all_cats = ["Все", "Замечательные пределы", "Экспоненты и логарифмы", "Тригонометрия", "Рациональные и иррациональные", "Односторонние пределы и разрывы"]
+        for cat_name in all_cats:
+            is_active = (self.handbook_category_filter == cat_name)
+            short_label = cat_name.replace(" и логарифмы", "").replace(" и иррациональные", "").replace(" и разрывы", "")
+            cat_chips.append(
+                ft.Container(
+                    content=ft.Text(short_label, size=11, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE if is_active else ft.Colors.ON_SURFACE),
+                    padding=ft.Padding.symmetric(horizontal=10, vertical=5),
+                    bgcolor=ft.Colors.PRIMARY if is_active else ft.Colors.SURFACE_CONTAINER_HIGH,
+                    border_radius=8,
+                    border=ft.Border.all(1, ft.Colors.PRIMARY if is_active else ft.Colors.OUTLINE_VARIANT),
+                    ink=True,
+                    on_click=lambda e, c=cat_name: self.set_handbook_category(c),
                 )
-
-            return ft.ListView(
-                expand=True,
-                spacing=10,
-                controls=items,
             )
 
-        # Presets by category (normal view)
+        cat_chips_row = ft.Row(controls=cat_chips, scroll=ft.ScrollMode.ADAPTIVE, spacing=6)
+
+        items = [search_field, cat_chips_row]
+        q = self.handbook_search_query
+
+        # Presets by category
         for cat in presets.CATEGORIES:
+            cat_name = cat["category"]
+            if self.handbook_category_filter != "Все" and self.handbook_category_filter != cat_name:
+                continue
+
             cat_cards = []
             for p in cat["items"]:
+                if q and (q not in p["title"].lower() and q not in p["formula"].lower() and q not in p["desc"].lower() and q not in p["expr"].lower()):
+                    continue
+
                 cat_cards.append(
                     ft.Container(
                         content=ft.Column(
@@ -1803,13 +2530,15 @@ class LimitApp:
                     )
                 )
 
-            items.append(
-                ft.ExpansionTile(
-                    title=ft.Text(cat["category"], weight=ft.FontWeight.BOLD, size=15),
-                    leading=ft.Icon(ft.Icons.FUNCTIONS, color=ft.Colors.INDIGO_ACCENT),
-                    controls=cat_cards,
+            if cat_cards:
+                items.append(
+                    ft.ExpansionTile(
+                        title=ft.Text(cat["category"], weight=ft.FontWeight.BOLD, size=15),
+                        leading=ft.Icon(ft.Icons.FUNCTIONS, color=ft.Colors.INDIGO_ACCENT),
+                        controls=cat_cards,
+                        expanded=(self.handbook_category_filter != "Все" or bool(q)),
+                    )
                 )
-            )
 
         # Equivalents Table Card
         equiv_rows = [
@@ -1885,37 +2614,9 @@ class LimitApp:
         )
 
     # -------------------------------------------------------------
-    # History View
+    # History & About View
     # -------------------------------------------------------------
     def build_history_view(self) -> ft.Control:
-        if not self.history:
-            return ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Container(
-                            content=ft.Image(
-                                src=ICON_PNG,
-                                width=48,
-                                height=48,
-                                fit=ft.BoxFit.CONTAIN,
-                            ),
-                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
-                            border_radius=12,
-                            padding=8,
-                        )
-                        if os.path.exists(ICON_PNG)
-                        else ft.Icon(ft.Icons.HISTORY, size=64, color=ft.Colors.ON_SURFACE_VARIANT),
-                        ft.Text("История пуста", size=18, weight=ft.FontWeight.BOLD),
-                        ft.Text("Здесь будут отображаться вычисленные вами пределы.", size=13, color=ft.Colors.ON_SURFACE_VARIANT, text_align=ft.TextAlign.CENTER),
-                    ],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                    spacing=12,
-                ),
-                alignment=ft.Alignment.CENTER,
-                expand=True,
-            )
-
         history_items = []
 
         def clear_history(e):
@@ -2001,14 +2702,14 @@ class LimitApp:
 
         displayed_list = self.history if self.history_filter == "all" else [h for h in self.history if h.get("favorite")]
 
-        if not displayed_list and self.history_filter == "fav":
+        if not displayed_list:
             history_items.append(
                 ft.Container(
                     content=ft.Column(
                         controls=[
-                            ft.Icon(ft.Icons.STAR_BORDER, size=48, color=ft.Colors.AMBER_400),
-                            ft.Text("Нет избранных записей", size=15, weight=ft.FontWeight.BOLD),
-                            ft.Text("Нажмите ⭐ в карточке решения, чтобы сохранить предел сюда.", size=12, color=ft.Colors.ON_SURFACE_VARIANT, text_align=ft.TextAlign.CENTER),
+                            ft.Icon(ft.Icons.HISTORY, size=48, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text("История пуста", size=16, weight=ft.FontWeight.BOLD),
+                            ft.Text("Здесь будут сохраняться вычисленные вами пределы.", size=12, color=ft.Colors.ON_SURFACE_VARIANT, text_align=ft.TextAlign.CENTER),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                         spacing=8,
@@ -2091,252 +2792,44 @@ class LimitApp:
                 )
             )
 
+        # About Card at the bottom of History tab
+        about_card = ft.Card(
+            content=ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(
+                            controls=[
+                                ft.Icon(ft.Icons.PERSON, color=ft.Colors.PRIMARY),
+                                ft.Text("Об авторе и приложении", weight=ft.FontWeight.BOLD, size=14),
+                            ],
+                            spacing=8,
+                        ),
+                        ft.Text("LimitApp v1.6.0 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).", size=12),
+                        ft.Row(
+                            controls=[
+                                ft.FilledTonalButton(
+                                    content=ft.Row([ft.Icon(ft.Icons.SEND, size=14), ft.Text("Telegram", size=11)], spacing=4, tight=True),
+                                    url="https://t.me/syrok_dev",
+                                ),
+                                ft.FilledTonalButton(
+                                    content=ft.Row([ft.Icon(ft.Icons.CODE, size=14), ft.Text("GitHub", size=11)], spacing=4, tight=True),
+                                    url="https://github.com/MaloyDevil/limitapp",
+                                ),
+                            ],
+                            spacing=8,
+                        ),
+                    ],
+                    spacing=8,
+                ),
+                padding=14,
+            ),
+        )
+        history_items.append(about_card)
+
         return ft.ListView(
             expand=True,
             spacing=10,
             controls=history_items,
-        )
-
-    # -------------------------------------------------------------
-    # About View
-    # -------------------------------------------------------------
-    def build_about_view(self) -> ft.Control:
-        app_icon_control = (
-            ft.Container(
-                content=ft.Image(
-                    src=ICON_PNG,
-                    width=54,
-                    height=54,
-                    fit=ft.BoxFit.CONTAIN,
-                ),
-                width=64,
-                height=64,
-                bgcolor=ft.Colors.INDIGO_900,
-                border_radius=14,
-                padding=5,
-                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
-                shadow=ft.BoxShadow(blur_radius=16, color=ft.Colors.with_opacity(0.35, ft.Colors.BLACK)),
-                alignment=ft.Alignment.CENTER,
-            )
-            if os.path.exists(ICON_PNG)
-            else ft.CircleAvatar(
-                content=ft.Icon(ft.Icons.ALL_INCLUSIVE, size=32, color=ft.Colors.AMBER_400),
-                radius=32,
-            )
-        )
-
-        return ft.ListView(
-            expand=True,
-            spacing=14,
-            controls=[
-                # 1. Main App Header Card with Icon
-                ft.Card(
-                    content=ft.Container(
-                        content=ft.Column(
-                            controls=[
-                                ft.Row(
-                                    controls=[
-                                        app_icon_control,
-                                        ft.Column(
-                                            controls=[
-                                                ft.Row(
-                                                    controls=[
-                                                        ft.Text("LimitApp", size=20, weight=ft.FontWeight.BOLD),
-                                                        ft.Container(
-                                                            content=ft.Text("AI PRO", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                                                            bgcolor=ft.Colors.INDIGO_600,
-                                                            padding=ft.Padding.symmetric(horizontal=6, vertical=2),
-                                                            border_radius=6,
-                                                        ),
-                                                    ],
-                                                    spacing=6,
-                                                    tight=True,
-                                                ),
-                                                ft.Text("Математический калькулятор пределов", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                                                ft.Row(
-                                                    controls=[
-                                                        ft.Icon(ft.Icons.AUTO_AWESOME, size=14, color=ft.Colors.AMBER_400),
-                                                        ft.Text("Версия 1.5.0 • Google Gemini AI & SymPy", size=11, color=ft.Colors.GREEN_400),
-                                                    ],
-                                                    spacing=4,
-                                                    tight=True,
-                                                ),
-                                            ],
-                                            spacing=2,
-                                        ),
-                                    ],
-                                    spacing=14,
-                                ),
-                                ft.Divider(height=1, thickness=0.5),
-                                ft.Text(
-                                    "LimitApp — аналитический мобильный калькулятор математических пределов с пошаговым решением, "
-                                    "интеграцией бесплатного искусственного интеллекта Google Gemini, "
-                                    "раскрытием всех 7 типов неопределенностей и интерактивным вводом математических формул.",
-                                    size=12,
-                                ),
-                            ],
-                            spacing=12,
-                        ),
-                        padding=18,
-                    ),
-                    elevation=3,
-                ),
-                # 2. Author Card
-                ft.Card(
-                    content=ft.Container(
-                        content=ft.Row(
-                            controls=[
-                                (
-                                    ft.Container(
-                                        content=ft.Image(
-                                            src=ICON_PNG,
-                                            width=38,
-                                            height=38,
-                                            fit=ft.BoxFit.CONTAIN,
-                                        ),
-                                        width=48,
-                                        height=48,
-                                        bgcolor=ft.Colors.INDIGO_900,
-                                        border_radius=12,
-                                        padding=5,
-                                        border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
-                                        alignment=ft.Alignment.CENTER,
-                                    )
-                                    if os.path.exists(ICON_PNG)
-                                    else ft.CircleAvatar(
-                                        content=ft.Icon(ft.Icons.PERSON, size=28, color=ft.Colors.WHITE),
-                                        radius=24,
-                                    )
-                                ),
-                                ft.Column(
-                                    controls=[
-                                        ft.Text("Нарницкий Роман", size=16, weight=ft.FontWeight.BOLD),
-                                        ft.Row(
-                                            controls=[
-                                                ft.Container(
-                                                    content=ft.Text("Syrok", size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                                                    bgcolor=ft.Colors.PURPLE,
-                                                    padding=ft.Padding.symmetric(horizontal=8, vertical=2),
-                                                    border_radius=8,
-                                                ),
-                                                ft.Text("Автор и создатель проекта", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                                            ],
-                                            spacing=6,
-                                            tight=True,
-                                        ),
-                                    ],
-                                    spacing=2,
-                                ),
-                            ],
-                            spacing=12,
-                        ),
-                        padding=14,
-                    ),
-                    elevation=2,
-                ),
-                # 3. Features Card
-                ft.Card(
-                    content=ft.Container(
-                        content=ft.Column(
-                            controls=[
-                                ft.Row(
-                                    controls=[
-                                        ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                                        ft.Text("Ключевые возможности v1.5.0", weight=ft.FontWeight.BOLD, size=15),
-                                    ],
-                                    spacing=8,
-                                    tight=True,
-                                ),
-                                ft.Divider(height=1, thickness=0.5),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=22),
-                                    title=ft.Text("✨ Бесплатный Google Gemini AI", size=13, weight=ft.FontWeight.BOLD),
-                                    subtitle=ft.Text("Пошаговое объяснение любого предела, теорем и графического смысла через Gemini 3.1 Flash-Lite, 3.5 Flash-Lite и 3.8 Flash.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.TOUCH_APP, color=ft.Colors.PRIMARY, size=22),
-                                    title=ft.Text("🎨 Быстрый и удобный ввод формул", size=13, weight=ft.FontWeight.BOLD),
-                                    subtitle=ft.Text("Готовые интерактивные шаблоны дробей, степеней, корней и замечательных пределов в 1 клик.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.KEYBOARD, color=ft.Colors.PRIMARY, size=22),
-                                    title=ft.Text("🔢 Двухуровневая математическая клавиатура", size=13, weight=ft.FontWeight.BOLD),
-                                    subtitle=ft.Text("Вкладки '123 / Алгебра' и 'f(x) Функции' с крупными удобными кнопками без загромождения экрана.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("Решение любого существующего предела", size=13),
-                                    subtitle=ft.Text("Поддержка LaTeX, тригонометрических степеней sin²(x), факториалов n!, корней, последовательностей.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("Двусторонние и односторонние пределы", size=13),
-                                    subtitle=ft.Text("Расчет при x → x₀, x → x₀⁺ и x → x₀⁻ с пошаговым обоснованием.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("Раскрытие 7 типов неопределенностей", size=13),
-                                    subtitle=ft.Text("0/0, ∞/∞, 0·∞, ∞-∞, 1^∞, 0^0, ∞^0 (Правило Лопиталя, Тейлор, эквивалентности).", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("Интерактивный справочник с живым поиском", size=13),
-                                    subtitle=ft.Text("Мгновенная фильтрация замечательных пределов и перенос в калькулятор в 1 клик.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("⭐ Избранное и история вычислений", size=13),
-                                    subtitle=ft.Text("Сохранение ключевых задач в закладки для подготовки к экзаменам.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.CHECK_CIRCLE_OUTLINE, color=ft.Colors.GREEN_400, size=20),
-                                    title=ft.Text("🎨 Идеальная Android Adaptive Icon", size=13),
-                                    subtitle=ft.Text("Чётко и ровно вырезанная иконка без артефактов под любой лаунчер (Pixel, Samsung, Xiaomi).", size=11),
-                                ),
-                            ],
-                            spacing=4,
-                        ),
-                        padding=16,
-                    ),
-                    elevation=2,
-                ),
-                # 4. Tech Stack Card
-                ft.Card(
-                    content=ft.Container(
-                        content=ft.Column(
-                            controls=[
-                                ft.Row(
-                                    controls=[
-                                        ft.Icon(ft.Icons.DEVELOPER_MODE, color=ft.Colors.INDIGO_ACCENT),
-                                        ft.Text("Стек технологий", weight=ft.FontWeight.BOLD, size=15),
-                                    ],
-                                    spacing=8,
-                                    tight=True,
-                                ),
-                                ft.Divider(height=1, thickness=0.5),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.AUTO_AWESOME, size=22, color=ft.Colors.AMBER_400),
-                                    title=ft.Text("Google Gemini REST API", weight=ft.FontWeight.W_600, size=13),
-                                    subtitle=ft.Text("Интеллектуальный анализ задач, генерация математических доказательств и объяснений.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.TERMINAL, size=22),
-                                    title=ft.Text("Python 3 & SymPy", weight=ft.FontWeight.W_600, size=13),
-                                    subtitle=ft.Text("Символьное дифференцирование, ряды Тейлора и точные аналитические расчеты.", size=11),
-                                ),
-                                ft.ListTile(
-                                    leading=ft.Icon(ft.Icons.PHONE_ANDROID, size=22),
-                                    title=ft.Text("Flet & Flutter Engine", weight=ft.FontWeight.W_600, size=13),
-                                    subtitle=ft.Text("Кроссплатформенный Material Design 3 интерфейс.", size=11),
-                                ),
-                            ],
-                            spacing=6,
-                        ),
-                        padding=16,
-                    ),
-                    elevation=2,
-                ),
-            ],
         )
 
 
