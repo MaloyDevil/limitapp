@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор и умный интерактивный репетитор по математическому анализу
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.6.3 (Fix Handbook INDETERMINACIES Crash & Complete UI Polish)
+Версия: 1.7.0 (Apple Studio Glass Overhaul, Floating Frosted Dock & Quick Limit Carousel Release)
 """
 
 import sys
@@ -34,6 +34,7 @@ class LimitApp:
         self.handbook_search_query = ""
         self.handbook_category_filter = "Все"
         self.active_keypad_tab = "basic"  # "basic" or "func"
+        self.current_tab_idx = 0
 
         # Dictionaries to track quick-selector chips for active state highlights
         self.var_chip_widgets = {}
@@ -63,64 +64,64 @@ class LimitApp:
                 pass
 
         dark_color_scheme = ft.ColorScheme(
-            primary=ft.Colors.INDIGO_400,
-            on_primary=ft.Colors.BLACK,
-            primary_container="#312E81",
-            on_primary_container="#E0E7FF",
-            secondary=ft.Colors.CYAN_400,
+            primary="#2563EB",
+            on_primary=ft.Colors.WHITE,
+            primary_container="#1D4ED8",
+            on_primary_container="#EFF6FF",
+            secondary="#38BDF8",
             on_secondary=ft.Colors.BLACK,
-            surface="#121826",
+            surface="#111827",
             on_surface="#F8FAFC",
-            surface_container="#182234",
-            surface_container_low="#121826",
-            surface_container_lowest="#090D16",
-            surface_container_high="#1E293B",
-            surface_container_highest="#26334D",
+            surface_container="#162032",
+            surface_container_low="#0E1522",
+            surface_container_lowest="#0B0F19",
+            surface_container_high="#1E2B44",
+            surface_container_highest="#283A5E",
             on_surface_variant="#94A3B8",
-            outline="#334155",
-            outline_variant="#1E293B",
+            outline="#223049",
+            outline_variant="#1A2538",
         )
 
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
-        self.page.bgcolor = "#090D16"
+        self.page.bgcolor = "#0B0F19"
 
         self.page.theme = ft.Theme(
             color_scheme=dark_color_scheme,
             visual_density=ft.VisualDensity.COMPACT,
             use_material3=True,
-            scaffold_bgcolor="#090D16",
-            card_bgcolor="#121826",
-            canvas_color="#090D16",
-            card_theme=ft.CardTheme(color="#121826", elevation=0),
+            scaffold_bgcolor="#0B0F19",
+            card_bgcolor="#111827",
+            canvas_color="#0B0F19",
+            card_theme=ft.CardTheme(color="#111827", elevation=0),
             expansion_tile_theme=ft.ExpansionTileTheme(
-                bgcolor="#182234",
-                collapsed_bgcolor="#182234",
+                bgcolor="#162032",
+                collapsed_bgcolor="#162032",
                 text_color="#F8FAFC",
-                icon_color=ft.Colors.INDIGO_ACCENT,
+                icon_color="#38BDF8",
             ),
             data_table_theme=ft.DataTableTheme(
-                heading_row_color="#1E293B",
-                data_row_color="#121826",
+                heading_row_color="#1E2B44",
+                data_row_color="#111827",
             ),
         )
         self.page.dark_theme = ft.Theme(
             color_scheme=dark_color_scheme,
             visual_density=ft.VisualDensity.COMPACT,
             use_material3=True,
-            scaffold_bgcolor="#090D16",
-            card_bgcolor="#121826",
-            canvas_color="#090D16",
-            card_theme=ft.CardTheme(color="#121826", elevation=0),
+            scaffold_bgcolor="#0B0F19",
+            card_bgcolor="#111827",
+            canvas_color="#0B0F19",
+            card_theme=ft.CardTheme(color="#111827", elevation=0),
             expansion_tile_theme=ft.ExpansionTileTheme(
-                bgcolor="#182234",
-                collapsed_bgcolor="#182234",
+                bgcolor="#162032",
+                collapsed_bgcolor="#162032",
                 text_color="#F8FAFC",
-                icon_color=ft.Colors.INDIGO_ACCENT,
+                icon_color="#38BDF8",
             ),
             data_table_theme=ft.DataTableTheme(
-                heading_row_color="#1E293B",
-                data_row_color="#121826",
+                heading_row_color="#1E2B44",
+                data_row_color="#111827",
             ),
         )
 
@@ -149,7 +150,7 @@ class LimitApp:
             prefix_icon=ft.Icons.FUNCTIONS_ROUNDED,
             border=ft.OutlineInputBorder(border_radius=12),
             dense=True,
-            bgcolor="#182234",
+            bgcolor="#162032",
             border_color="#334155",
             autofocus=False,
             expand=True,
@@ -162,7 +163,7 @@ class LimitApp:
             value="x",
             width=72,
             dense=True,
-            bgcolor="#182234",
+            bgcolor="#162032",
             border_color="#334155",
             text_align=ft.TextAlign.CENTER,
             border=ft.OutlineInputBorder(border_radius=12),
@@ -174,7 +175,7 @@ class LimitApp:
             value="0",
             hint_text="0, oo, 1, pi...",
             dense=True,
-            bgcolor="#182234",
+            bgcolor="#162032",
             border_color="#334155",
             border=ft.OutlineInputBorder(border_radius=12),
             expand=3,
@@ -186,7 +187,7 @@ class LimitApp:
             label="Направление",
             value="+-",
             dense=True,
-            bgcolor="#182234",
+            bgcolor="#162032",
             border_color="#334155",
             border=ft.OutlineInputBorder(border_radius=12),
             options=[
@@ -245,13 +246,13 @@ class LimitApp:
             content=self.calc_view,
             expand=True,
             padding=ft.Padding.symmetric(horizontal=12, vertical=10),
-            bgcolor="#0B0F17",
+            bgcolor="#0B0F19",
         )
 
         # Mobile Bottom Navigation Bar (5 distinct tabs)
         self.nav_bar = ft.NavigationBar(
             selected_index=0,
-            bgcolor="#121826",
+            bgcolor="#111827",
             indicator_color="#312E81",
             on_change=self.on_nav_change,
             destinations=[
@@ -309,19 +310,21 @@ class LimitApp:
             else ft.Icon(ft.Icons.ALL_INCLUSIVE, color=ft.Colors.AMBER_400)
         )
 
+        # Apple Studio Glass AppBar
         self.app_bar = ft.AppBar(
             leading=ft.Container(
                 content=leading_control,
                 padding=ft.Padding.only(left=12, top=6, bottom=6),
             ),
-            title_spacing=2,
+            title_spacing=4,
             title=ft.Row(
                 spacing=8,
                 controls=[
-                    ft.Text("LimitApp", weight=ft.FontWeight.BOLD, size=19, color="#F8FAFC"),
+                    ft.Text("LimitApp", weight=ft.FontWeight.W_800, size=18, color="#F8FAFC"),
                     ft.Container(
-                        content=ft.Text("AI PRO", size=9, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                        bgcolor=ft.Colors.INDIGO_600,
+                        content=ft.Text("STUDIO", size=9, weight=ft.FontWeight.BOLD, color="#38BDF8"),
+                        bgcolor="#0C2548",
+                        border=ft.Border.all(0.8, "#1D4ED8"),
                         padding=ft.Padding.symmetric(horizontal=6, vertical=2),
                         border_radius=6,
                     ),
@@ -329,24 +332,55 @@ class LimitApp:
                 tight=True,
             ),
             actions=[
-                ft.IconButton(
-                    icon=ft.Icons.CAMERA_ALT_OUTLINED,
-                    tooltip="Ввод по фото (OCR)",
-                    on_click=self.open_photo_input_dialog,
+                ft.Container(
+                    content=ft.IconButton(
+                        icon=ft.Icons.CASINO_ROUNDED,
+                        icon_size=18,
+                        icon_color="#94A3B8",
+                        tooltip="Случайный пример",
+                        on_click=self.load_random_example,
+                    ),
+                    padding=ft.Padding.only(right=2),
                 ),
-                ft.IconButton(
-                    icon=ft.Icons.SETTINGS_OUTLINED,
-                    tooltip="Настройки Gemini AI",
-                    on_click=self.open_gemini_settings,
+                ft.Container(
+                    content=ft.IconButton(
+                        icon=ft.Icons.CAMERA_ALT_ROUNDED,
+                        icon_size=18,
+                        icon_color="#94A3B8",
+                        tooltip="Ввод по фото (OCR)",
+                        on_click=self.open_photo_input_dialog,
+                    ),
+                    padding=ft.Padding.only(right=2),
+                ),
+                ft.Container(
+                    content=ft.IconButton(
+                        icon=ft.Icons.TUNE_ROUNDED,
+                        icon_size=18,
+                        icon_color="#94A3B8",
+                        tooltip="Настройки Gemini AI",
+                        on_click=self.open_gemini_settings,
+                    ),
+                    padding=ft.Padding.only(right=8),
                 ),
             ],
-            bgcolor="#121826",
+            bgcolor="#0B0F19",
             elevation=0,
         )
 
+        # Build Apple Studio Floating Frosted Dock
+        self.floating_dock = self.build_floating_dock()
+
         self.page.appbar = self.app_bar
-        self.page.navigation_bar = self.nav_bar
-        self.page.add(self.content_container)
+        self.page.navigation_bar = None
+        self.page_layout = ft.Column(
+            controls=[
+                self.content_container,
+                self.floating_dock,
+            ],
+            expand=True,
+            spacing=0,
+        )
+        self.page.add(self.page_layout)
 
     # -------------------------------------------------------------
     # Configuration / Gemini API key storage
@@ -538,8 +572,94 @@ class LimitApp:
         except Exception:
             pass
 
-    def on_nav_change(self, e):
-        idx = self.nav_bar.selected_index
+    # -------------------------------------------------------------
+    # Apple Studio Floating Frosted Dock Navigation
+    # -------------------------------------------------------------
+    def build_floating_dock(self) -> ft.Control:
+        self.dock_items_row = ft.Row(
+            controls=[],
+            alignment=ft.MainAxisAlignment.SPACE_EVENLY,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+        self.update_dock_ui()
+
+        dock_card = ft.Container(
+            content=self.dock_items_row,
+            bgcolor="#101726",
+            border=ft.Border.all(width=1, color="#22324F"),
+            border_radius=26,
+            padding=ft.Padding.symmetric(horizontal=6, vertical=6),
+            shadow=ft.BoxShadow(
+                spread_radius=1,
+                blur_radius=20,
+                color="#00000099",
+                offset=ft.Offset(0, 4),
+            ),
+        )
+
+        return ft.Container(
+            content=dock_card,
+            alignment=ft.Alignment.CENTER,
+            padding=ft.Padding.only(left=12, right=12, bottom=10, top=2),
+            bgcolor="transparent",
+        )
+
+    def update_dock_ui(self):
+        dock_specs = [
+            ("Кальк", ft.Icons.CALCULATE_ROUNDED),
+            ("График", ft.Icons.AUTO_GRAPH_ROUNDED),
+            ("Репетитор", ft.Icons.PSYCHOLOGY_ROUNDED),
+            ("Теория", ft.Icons.MENU_BOOK_ROUNDED),
+            ("История", ft.Icons.HISTORY_ROUNDED),
+        ]
+
+        controls = []
+        for i, (label, icon) in enumerate(dock_specs):
+            is_active = (i == getattr(self, "current_tab_idx", 0))
+            if is_active:
+                item = ft.Container(
+                    content=ft.Row(
+                        controls=[
+                            ft.Icon(icon, color=ft.Colors.WHITE, size=18),
+                            ft.Text(label, color=ft.Colors.WHITE, size=11, weight=ft.FontWeight.BOLD),
+                        ],
+                        spacing=5,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        tight=True,
+                    ),
+                    bgcolor="#2563EB",
+                    border_radius=20,
+                    padding=ft.Padding.symmetric(horizontal=12, vertical=8),
+                    ink=True,
+                    on_click=lambda e, idx=i: self.switch_dock_tab(idx),
+                )
+            else:
+                item = ft.Container(
+                    content=ft.Column(
+                        controls=[
+                            ft.Icon(icon, color="#94A3B8", size=18),
+                            ft.Text(label, color="#94A3B8", size=9, weight=ft.FontWeight.W_500),
+                        ],
+                        spacing=2,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        tight=True,
+                    ),
+                    padding=ft.Padding.symmetric(horizontal=8, vertical=4),
+                    border_radius=16,
+                    ink=True,
+                    on_click=lambda e, idx=i: self.switch_dock_tab(idx),
+                )
+            controls.append(item)
+
+        if hasattr(self, "dock_items_row"):
+            self.dock_items_row.controls = controls
+
+    def switch_dock_tab(self, idx: int):
+        self.current_tab_idx = idx
+        if hasattr(self, "nav_bar"):
+            self.nav_bar.selected_index = idx
+        self.update_dock_ui()
         if idx == 0:
             self.content_container.content = self.calc_view
         elif idx == 1:
@@ -551,6 +671,10 @@ class LimitApp:
         elif idx == 4:
             self.content_container.content = self.build_history_view()
         self.page.update()
+
+    def on_nav_change(self, e):
+        idx = self.nav_bar.selected_index if hasattr(self, "nav_bar") else 0
+        self.switch_dock_tab(idx)
 
     def on_input_changed(self, e=None):
         self.update_live_preview()
@@ -716,7 +840,7 @@ class LimitApp:
             bgcolor = "#1E293B"
         elif ktype == "num":
             content = ft.Text(label, weight=ft.FontWeight.BOLD, size=16, color="#F8FAFC", no_wrap=True)
-            bgcolor = "#182234"
+            bgcolor = "#162032"
         else:  # "op"
             content = ft.Text(label, weight=ft.FontWeight.BOLD, size=font_size, color="#E2E8F0", no_wrap=True)
             bgcolor = "#1E293B"
@@ -910,7 +1034,7 @@ class LimitApp:
                     tight=True,
                 ),
                 padding=ft.Padding.symmetric(horizontal=10, vertical=6),
-                bgcolor="#182234",
+                bgcolor="#162032",
                 border_radius=8,
                 tooltip=tip,
                 ink=True,
@@ -920,6 +1044,55 @@ class LimitApp:
 
         template_scroll_row = ft.Row(
             controls=template_chips,
+            spacing=6,
+            scroll=ft.ScrollMode.ADAPTIVE,
+        )
+
+        # Popular Limits Quick Carousel (1-Tap instant solutions)
+        quick_popular_data = [
+            ("sin(x)/x → 1", "sin(x)/x", "x", "0", "+-"),
+            ("(1+1/x)ˣ → e", "(1 + 1/x)^x", "x", "oo", "+-"),
+            ("(eˣ-1)/x → 1", "(exp(x) - 1)/x", "x", "0", "+-"),
+            ("ln(1+x)/x → 1", "ln(1 + x)/x", "x", "0", "+-"),
+            ("(1-cos x)/x² → ½", "(1 - cos(x))/x^2", "x", "0", "+-"),
+            ("(√x-1)/(x-1) → ½", "(sqrt(x) - 1)/(x - 1)", "x", "1", "+-"),
+            ("(x³-1)/(x-1) → 3", "(x^3 - 1)/(x - 1)", "x", "1", "+-"),
+            ("x·ln(x) → 0", "x*ln(x)", "x", "0", "+"),
+            ("(1+x)^(1/x) → e", "(1 + x)^(1/x)", "x", "0", "+-"),
+        ]
+
+        def run_quick_limit(e, expr, var, pt, direction):
+            self.expr_input.value = expr
+            self.var_input.value = var
+            self.point_input.value = pt
+            self.dir_dropdown.value = direction
+            self.update_live_preview()
+            self.update_chip_highlights()
+            self.on_calculate_click(None)
+
+        popular_chips = []
+        for badge_lbl, expr, var, pt, direction in quick_popular_data:
+            popular_chips.append(
+                ft.Container(
+                    content=ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.AUTO_AWESOME_ROUNDED, size=11, color=ft.Colors.AMBER_400),
+                            ft.Text(badge_lbl, size=11, weight=ft.FontWeight.BOLD, color="#F8FAFC", no_wrap=True),
+                        ],
+                        spacing=4,
+                        tight=True,
+                    ),
+                    padding=ft.Padding.symmetric(horizontal=10, vertical=6),
+                    bgcolor="#141E33",
+                    border=ft.Border.all(0.8, "#253759"),
+                    border_radius=12,
+                    ink=True,
+                    on_click=lambda e, ex=expr, v=var, p=pt, d=direction: run_quick_limit(e, ex, v, p, d),
+                )
+            )
+
+        popular_scroll_row = ft.Row(
+            controls=popular_chips,
             spacing=6,
             scroll=ft.ScrollMode.ADAPTIVE,
         )
@@ -1003,7 +1176,7 @@ class LimitApp:
                 controls=[self.tab_basic_btn, self.tab_func_btn],
                 spacing=4,
             ),
-            bgcolor="#182234",
+            bgcolor="#162032",
             padding=3,
             border_radius=10,
         )
@@ -1019,7 +1192,7 @@ class LimitApp:
             ),
             padding=10,
             border_radius=14,
-            bgcolor="#121826",
+            bgcolor="#111827",
             visible=self.keypad_visible,
         )
 
@@ -1095,23 +1268,31 @@ class LimitApp:
             on_click=self.toggle_keypad,
         )
 
+        def handle_calc_action(e):
+            if getattr(self, "keypad_visible", True):
+                self.keypad_visible = False
+                if hasattr(self, "keypad_container"):
+                    self.keypad_container.visible = False
+                if hasattr(self, "toggle_keypad_btn"):
+                    self.toggle_keypad_btn.text = "⌨️ Клавиатура"
+            self.on_calculate_click(e)
+
         calc_btn = ft.FilledButton(
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.BOLT_ROUNDED, color=ft.Colors.AMBER_300, size=20),
-                    ft.Text("Рассчитать предел", weight=ft.FontWeight.BOLD, size=15),
+                    ft.Icon(ft.Icons.PLAY_ARROW_ROUNDED, color=ft.Colors.WHITE, size=20),
+                    ft.Text("Рассчитать предел", weight=ft.FontWeight.BOLD, size=15, color=ft.Colors.WHITE),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 tight=True,
             ),
             style=ft.ButtonStyle(
-                bgcolor=ft.Colors.INDIGO_600,
-                color=ft.Colors.WHITE,
-                shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding.symmetric(vertical=14),
+                bgcolor="#2563EB",
+                shape=ft.RoundedRectangleBorder(radius=16),
+                padding=ft.Padding.symmetric(vertical=15),
             ),
             expand=True,
-            on_click=self.on_calculate_click,
+            on_click=handle_calc_action,
         )
 
         gemini_btn = ft.FilledTonalButton(
@@ -1172,7 +1353,7 @@ class LimitApp:
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
             ),
             padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-            bgcolor="#182234",
+            bgcolor="#162032",
             border_radius=12,
         )
 
@@ -1232,6 +1413,9 @@ class LimitApp:
                                 ],
                                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                             ),
+
+                            # Quick Popular Limits Carousel
+                            popular_scroll_row,
 
                             # Horizontal scrolling template chips
                             template_scroll_row,
@@ -1298,7 +1482,7 @@ class LimitApp:
                     ),
                     padding=16,
                     border_radius=16,
-                    bgcolor="#121826",
+                    bgcolor="#111827",
                 ),
 
                 # Touch Mathematical Keypad
@@ -1458,19 +1642,25 @@ class LimitApp:
                 wrap=True,
             ),
             ft.Container(
-                content=ft.Row(
+                content=ft.Column(
                     controls=[
-                        ft.Text("= ", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
-                        ft.Text(ans_text, size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY),
-                        ft.Text(f" ({numeric_text})" if numeric_text else "", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.Row(
+                            controls=[
+                                ft.Text("L = ", size=28, weight=ft.FontWeight.BOLD, color="#38BDF8"),
+                                ft.Text(ans_text, size=30, weight=ft.FontWeight.BOLD, color="#F8FAFC"),
+                                ft.Text(f"  ({numeric_text})" if numeric_text else "", size=14, color="#94A3B8"),
+                            ],
+                            alignment=ft.MainAxisAlignment.START,
+                            wrap=True,
+                        ),
+                        ft.Text(lim_notation, size=12, color="#94A3B8", italic=True),
                     ],
-                    alignment=ft.MainAxisAlignment.START,
-                    wrap=True,
+                    spacing=4,
                 ),
-                padding=ft.Padding.symmetric(horizontal=14, vertical=10),
-                bgcolor="#1E293B",
-                border_radius=12,
-                border=ft.Border.all(1, "#334155"),
+                padding=ft.Padding.symmetric(horizontal=16, vertical=12),
+                bgcolor="#0F172A",
+                border_radius=16,
+                border=ft.Border.all(1.2, "#2563EB"),
             ),
         ]
 
@@ -1546,8 +1736,7 @@ class LimitApp:
                 self.copy_to_clipboard(latex_code, "LaTeX код скопирован! 📋")
 
         def open_in_lab(e):
-            self.nav_bar.selected_index = 1
-            self.content_container.content = self.build_explorer_view()
+            self.switch_dock_tab(1)
             self.page.update()
 
         def toggle_favorite(e):
@@ -1612,7 +1801,7 @@ class LimitApp:
         main_card = ft.Container(
             content=ft.Column(controls=header_items, spacing=12),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=16,
         )
         self.result_container.controls.append(main_card)
@@ -1645,7 +1834,7 @@ class LimitApp:
                     spacing=8,
                 ),
                 padding=14,
-                bgcolor="#121826",
+                bgcolor="#111827",
                 border_radius=14,
             )
             self.result_container.controls.append(diag_card)
@@ -1684,7 +1873,7 @@ class LimitApp:
                     spacing=8,
                 ),
                 padding=14,
-                bgcolor="#121826",
+                bgcolor="#111827",
                 border_radius=14,
             )
             self.result_container.controls.append(methods_card)
@@ -1704,7 +1893,7 @@ class LimitApp:
                         ),
                         padding=12,
                         border_radius=10,
-                        bgcolor="#121826",
+                        bgcolor="#111827",
                         border=ft.Border.all(1, "#334155"),
                     )
                 )
@@ -1726,7 +1915,7 @@ class LimitApp:
                     spacing=10,
                 ),
                 padding=16,
-                bgcolor="#121826",
+                bgcolor="#111827",
                 border_radius=16,
             )
             self.result_container.controls.append(steps_card)
@@ -1746,11 +1935,11 @@ class LimitApp:
             ]
 
             data_table = ft.DataTable(
-                bgcolor="#121826",
+                bgcolor="#111827",
                 heading_row_color="#1E293B",
                 data_row_color={
                     "hovered": "#26334D",
-                    "": "#121826",
+                    "": "#111827",
                 },
                 border=ft.Border.all(1, "#334155"),
                 border_radius=10,
@@ -1766,7 +1955,7 @@ class LimitApp:
             )
 
             table_card = ft.Card(
-                bgcolor="#121826",
+                bgcolor="#111827",
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1822,7 +2011,7 @@ class LimitApp:
         self.result_container.visible = True
         self.result_container.controls = [
             ft.Card(
-                bgcolor="#121826",
+                bgcolor="#111827",
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1986,7 +2175,7 @@ class LimitApp:
         )
 
         ai_card = ft.Card(
-            bgcolor="#121826",
+            bgcolor="#111827",
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -2135,14 +2324,14 @@ class LimitApp:
                             spacing=4,
                         ),
                         padding=12,
-                        bgcolor="#182234",
+                        bgcolor="#162032",
                         border_radius=12,
                     ),
                 ],
                 spacing=10,
             ),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=16,
         )
 
@@ -2182,14 +2371,14 @@ class LimitApp:
                             spacing=4,
                         ),
                         padding=12,
-                        bgcolor="#182234",
+                        bgcolor="#162032",
                         border_radius=12,
                     ),
                 ],
                 spacing=10,
             ),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=16,
         )
 
@@ -2261,7 +2450,7 @@ class LimitApp:
         disc_card = ft.Container(
             content=ft.Column(controls=disc_controls, spacing=10),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=16,
         )
 
@@ -2389,7 +2578,7 @@ class LimitApp:
                 spacing=10,
             ),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=16,
         )
 
@@ -2443,9 +2632,7 @@ class LimitApp:
                 self.dir_dropdown.value = "+-"
                 self.update_live_preview()
                 self.update_chip_highlights()
-                self.nav_bar.selected_index = 0
-                self.content_container.content = self.calc_view
-                self.page.update()
+                self.switch_dock_tab(0)
                 self.on_calculate_click(None)
 
             practice_controls.append(
@@ -2486,7 +2673,7 @@ class LimitApp:
         practice_card = ft.Container(
             content=ft.Column(controls=practice_controls, spacing=10),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=16,
         )
 
@@ -2509,9 +2696,7 @@ class LimitApp:
         self.dir_dropdown.value = p["dir"]
         self.update_live_preview()
         self.update_chip_highlights()
-        self.nav_bar.selected_index = 0
-        self.content_container.content = self.calc_view
-        self.page.update()
+        self.switch_dock_tab(0)
         self.on_calculate_click(None)
 
     def on_handbook_search_change(self, e):
@@ -2532,7 +2717,7 @@ class LimitApp:
             border=ft.OutlineInputBorder(border_radius=12),
             dense=True,
             content_padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-            bgcolor="#182234",
+            bgcolor="#162032",
             border_color="#334155",
             on_change=self.on_handbook_search_change,
         )
@@ -2559,7 +2744,7 @@ class LimitApp:
                         color=ft.Colors.WHITE if is_active else "#94A3B8",
                     ),
                     padding=ft.Padding.symmetric(horizontal=10, vertical=6),
-                    bgcolor=ft.Colors.INDIGO_600 if is_active else "#182234",
+                    bgcolor=ft.Colors.INDIGO_600 if is_active else "#162032",
                     border_radius=8,
                     ink=True,
                     on_click=lambda e, c=cat_name: self.set_handbook_category(c),
@@ -2639,7 +2824,7 @@ class LimitApp:
                         ),
                         padding=12,
                         margin=ft.Margin.only(bottom=4),
-                        bgcolor="#182234",
+                        bgcolor="#162032",
                         border_radius=12,
                     )
                 )
@@ -2661,7 +2846,7 @@ class LimitApp:
                                         ),
                                         ft.Container(
                                             content=ft.Text(f"{len(cat_cards)} прим.", size=10, weight=ft.FontWeight.W_600, color="#94A3B8"),
-                                            bgcolor="#182234",
+                                            bgcolor="#162032",
                                             padding=ft.Padding.symmetric(horizontal=8, vertical=3),
                                             border_radius=6,
                                         ),
@@ -2673,7 +2858,7 @@ class LimitApp:
                             ],
                             spacing=10,
                         ),
-                        bgcolor="#121826",
+                        bgcolor="#111827",
                         border_radius=16,
                         padding=14,
                         margin=ft.Margin.only(bottom=8),
@@ -2694,8 +2879,8 @@ class LimitApp:
         ]
 
         equiv_table = ft.DataTable(
-            bgcolor="#121826",
-            heading_row_color="#182234",
+            bgcolor="#111827",
+            heading_row_color="#162032",
             border_radius=10,
             columns=[
                 ft.DataColumn(ft.Text("Функция", weight=ft.FontWeight.BOLD, color="#F8FAFC", size=12)),
@@ -2727,7 +2912,7 @@ class LimitApp:
                     spacing=8,
                 ),
                 padding=14,
-                bgcolor="#121826",
+                bgcolor="#111827",
                 border_radius=16,
                 margin=ft.Margin.only(bottom=8),
             )
@@ -2770,7 +2955,7 @@ class LimitApp:
                     ),
                     padding=10,
                     margin=ft.Margin.only(bottom=6),
-                    bgcolor="#182234",
+                    bgcolor="#162032",
                     border_radius=10,
                 )
             )
@@ -2793,7 +2978,7 @@ class LimitApp:
                     spacing=8,
                 ),
                 padding=14,
-                bgcolor="#121826",
+                bgcolor="#111827",
                 border_radius=16,
                 margin=ft.Margin.only(bottom=8),
             )
@@ -2805,7 +2990,7 @@ class LimitApp:
                 spacing=10,
                 controls=items,
             ),
-            bgcolor="#090D16",
+            bgcolor="#0B0F19",
             expand=True,
         )
     # -------------------------------------------------------------
@@ -2873,7 +3058,7 @@ class LimitApp:
                         color=ft.Colors.WHITE if self.history_filter == "all" else "#94A3B8",
                     ),
                     padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-                    bgcolor=ft.Colors.INDIGO_600 if self.history_filter == "all" else "#182234",
+                    bgcolor=ft.Colors.INDIGO_600 if self.history_filter == "all" else "#162032",
                     border_radius=8,
                     ink=True,
                     on_click=lambda e: set_history_filter("all"),
@@ -2893,7 +3078,7 @@ class LimitApp:
                         tight=True,
                     ),
                     padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-                    bgcolor=ft.Colors.INDIGO_600 if self.history_filter == "fav" else "#182234",
+                    bgcolor=ft.Colors.INDIGO_600 if self.history_filter == "fav" else "#162032",
                     border_radius=8,
                     ink=True,
                     on_click=lambda e: set_history_filter("fav"),
@@ -2916,7 +3101,7 @@ class LimitApp:
                             ft.Container(
                                 content=ft.Icon(ft.Icons.HISTORY_ROUNDED, size=48, color=ft.Colors.INDIGO_ACCENT),
                                 padding=14,
-                                bgcolor="#182234",
+                                bgcolor="#162032",
                                 shape=ft.BoxShape.CIRCLE,
                             ),
                             ft.Text("История пуста", size=16, weight=ft.FontWeight.BOLD, color="#F8FAFC"),
@@ -2941,7 +3126,7 @@ class LimitApp:
                     ),
                     padding=28,
                     margin=ft.Margin.symmetric(vertical=10),
-                    bgcolor="#121826",
+                    bgcolor="#111827",
                     border_radius=16,
                     alignment=ft.Alignment.CENTER,
                 )
@@ -2961,9 +3146,7 @@ class LimitApp:
                 self.dir_dropdown.value = it["dir"]
                 self.update_live_preview()
                 self.update_chip_highlights()
-                self.nav_bar.selected_index = 0
-                self.content_container.content = self.calc_view
-                self.page.update()
+                self.switch_dock_tab(0)
                 self.on_calculate_click(None)
 
             def toggle_item_fav(e, it=item):
@@ -3013,7 +3196,7 @@ class LimitApp:
                     ),
                     padding=ft.Padding.symmetric(horizontal=14, vertical=12),
                     margin=ft.Margin.only(bottom=6),
-                    bgcolor="#121826",
+                    bgcolor="#111827",
                     border_radius=12,
                     ink=True,
                     on_click=restore_item,
@@ -3032,7 +3215,7 @@ class LimitApp:
                         spacing=8,
                     ),
                     ft.Text(
-                        "LimitApp v1.6.3 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).\n\n"
+                        "LimitApp v1.7.0 Studio AI Pro — Нарницкий Роман (никнейм Syrok).\n\n"
                         "Умный интерактивный репетитор по высшей математике: пошаговый расчет пределов, "
                         "визуальное исследование ε-δ, сравнение методов и интеграция с Google Gemini AI.",
                         size=12,
@@ -3056,7 +3239,7 @@ class LimitApp:
                 spacing=10,
             ),
             padding=16,
-            bgcolor="#121826",
+            bgcolor="#111827",
             border_radius=14,
         )
         history_items.append(about_card)
@@ -3067,7 +3250,7 @@ class LimitApp:
                 spacing=10,
                 controls=history_items,
             ),
-            bgcolor="#090D16",
+            bgcolor="#0B0F19",
             expand=True,
         )
 def main(page: ft.Page):
