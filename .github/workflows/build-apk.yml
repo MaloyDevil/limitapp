@@ -56,7 +56,7 @@ jobs:
 
       - name: Build Android APK via Flet
         run: |
-          flet build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --build-version 1.6.2 --build-number 162 --yes -v || python -m flet.cli build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --build-version 1.6.2 --build-number 162 --yes -v
+          flet build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --build-version 1.6.3 --build-number 163 --yes -v || python -m flet.cli build apk --project limitapp --product "LimitApp" --org com.syrok.limitapp --android-adaptive-icon-background "#0d1838" --build-version 1.6.3 --build-number 163 --yes -v
 
       - name: Search and Collect Generated APKs
         run: |
@@ -78,30 +78,29 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.6.2' }}
-          name: "LimitApp AI Tutor Pro v1.6.2 (Handbook & History Grey Box Fix, Text Overflow Resolution)"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.6.3' }}
+          name: "LimitApp AI Tutor Pro v1.6.3 (Fix Handbook INDETERMINACIES Crash & Complete UI Polish)"
           body: |
-            ## 📱 LimitApp AI Tutor Pro v1.6.2 для Android
+            ## 📱 LimitApp AI Tutor Pro v1.6.3 для Android
 
-            🎉 **Полное исправление отображения справочника, истории и устранение переполнения текста!**
+            🎉 **Срочный хотфикс: устранение ошибки запуска вкладки Справочника (`module 'presets' has no attribute 'INDETERMINACIES'`)!**
 
-            В этом обновлении устранены серые и белые блоки в разделах Справочника и Истории, а также предотвращено любое обрезание и переполнение текста на экранах мобильных устройств.
+            В этой версии полностью устранена ошибка атрибута в модуле `presets`, добавлены безопасные геттеры и полностью восстановлена работоспособность вкладки теории и формул.
 
             ---
-            ### ✨ Главные изменения в обновлении v1.6.2:
+            ### ✨ Изменения в релизе v1.6.3:
 
-            1. **📚 Полное исправление вкладок «Справочник» и «История»**:
-               - Устранены артефакты Flutter M3, вызывавшие появление сплошного серого прямоугольника вместо формул и карточек.
-               - Заменены нестабильные `ExpansionTile` на нативные карточки категорий с красивыми заголовками, чипами и прямым отображением примеров.
-               - Все фоны строго переведены на фирменную обсидиановую палитру (`#090D16`, `#121826`, `#182234`) с контрастным белым и лазурным текстом.
+            1. **🔧 Исправление ошибки `presets.INDETERMINACIES`**:
+               - В `presets.py` добавлена таблица `INDETERMINACIES` (алиас к `INDETERMINACY_TABLE`) с детальным описанием всех 7 типов неопределенностей, названиями и формулами примеров.
+               - В `main.py` добавлен безопасный доступ `getattr(presets, 'INDETERMINACIES', ...)` и безопасное извлечение полей `.get()`, исключающее падение приложения при любых условиях.
 
-            2. **📱 Защита от переполнения и обрезания текста на мобильных экранах**:
-               - Лаконичные и аккуратные названия вкладок нижней панели навигации (`Кальк`, `График`, `Репетитор`, `Теория`, `История`), которые гарантированно помещаются на любых смартфонах даже с крупным системным шрифтом.
-               - Добавлен автоматический перенос строк (`wrap=True`) и эллипсис (`overflow=ELLIPSIS`) для длинных математических формул, заголовков и карточек истории.
+            2. **🎨 Идеальное отображение Справочника и Истории**:
+               - Чёткая и контрастная тёмная палитра (`#090D16`, `#121826`, `#182234`) без каких-либо серых или белых блоков.
+               - Нативные карточки категорий с бейджами количества формул, таблица эквивалентностей и карточки неопределенностей.
 
-            3. **⚡ Стабильность и оптимизация**:
-               - Проверена работа всех аналитических модулей SymPy CAS, интерактивного графопостроителя и пошагового решателя.
-               - Полная совместимость со светлой и тёмной системными темами Android без сбоя палитры.
+            3. **📱 Полная защита от переполнения текста на смартфонах**:
+               - Компактные и надёжные названия вкладок навигации (`Кальк`, `График`, `Репетитор`, `Теория`, `История`).
+               - Автоматический перенос строк и эллипсис во всех математических блоках.
 
             ---
             ### 📥 Установка:

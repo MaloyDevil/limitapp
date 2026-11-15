@@ -2,7 +2,7 @@
 LimitApp - Мобильный калькулятор и умный интерактивный репетитор по математическому анализу
 Создатель: Нарницкий Роман (никнейм Syrok)
 Стек: Python, SymPy, Flet (Material 3 / Flutter Engine), Google Gemini API
-Версия: 1.6.2 (Handbook & History UI Fix, No Grey Boxes, Full Text Overflow Protection)
+Версия: 1.6.3 (Fix Handbook INDETERMINACIES Crash & Complete UI Polish)
 """
 
 import sys
@@ -2735,27 +2735,37 @@ class LimitApp:
 
         # Indeterminacies Cards
         indet_cards = []
-        for ind in presets.INDETERMINACIES:
+        ind_list = getattr(presets, "INDETERMINACIES", getattr(presets, "INDETERMINACY_TABLE", []))
+        for ind in ind_list:
+            name_text = ind.get("name", "")
+            example_text = ind.get("example", "")
+            row_ctrls = [
+                ft.Container(
+                    content=ft.Text(ind.get("type", ""), weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.WHITE),
+                    bgcolor="#312E81",
+                    padding=ft.Padding.symmetric(horizontal=8, vertical=3),
+                    border_radius=6,
+                )
+            ]
+            if name_text:
+                row_ctrls.append(ft.Text(name_text, weight=ft.FontWeight.BOLD, size=12, color="#F8FAFC"))
+
+            card_ctrls = [
+                ft.Row(
+                    controls=row_ctrls,
+                    spacing=8,
+                    wrap=True,
+                )
+            ]
+            if example_text:
+                card_ctrls.append(ft.Text(f"Пример: {example_text}", size=12, color=ft.Colors.INDIGO_300, italic=True))
+            if ind.get("methods"):
+                card_ctrls.append(ft.Text(ind.get("methods", ""), size=12, color="#CBD5E1"))
+
             indet_cards.append(
                 ft.Container(
                     content=ft.Column(
-                        controls=[
-                            ft.Row(
-                                controls=[
-                                    ft.Container(
-                                        content=ft.Text(ind["type"], weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.WHITE),
-                                        bgcolor="#312E81",
-                                        padding=ft.Padding.symmetric(horizontal=8, vertical=3),
-                                        border_radius=6,
-                                    ),
-                                    ft.Text(ind["name"], weight=ft.FontWeight.BOLD, size=12, color="#F8FAFC"),
-                                ],
-                                spacing=8,
-                                wrap=True,
-                            ),
-                            ft.Text(f"Пример: {ind['example']}", size=12, color=ft.Colors.INDIGO_300, italic=True),
-                            ft.Text(ind["methods"], size=12, color="#CBD5E1"),
-                        ],
+                        controls=card_ctrls,
                         spacing=6,
                     ),
                     padding=10,
@@ -3022,7 +3032,7 @@ class LimitApp:
                         spacing=8,
                     ),
                     ft.Text(
-                        "LimitApp v1.6.2 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).\n\n"
+                        "LimitApp v1.6.3 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).\n\n"
                         "Умный интерактивный репетитор по высшей математике: пошаговый расчет пределов, "
                         "визуальное исследование ε-δ, сравнение методов и интеграция с Google Gemini AI.",
                         size=12,
