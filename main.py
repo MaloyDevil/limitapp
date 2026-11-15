@@ -64,6 +64,42 @@ class LimitApp:
 
         self.page.theme_mode = ft.ThemeMode.DARK
         self.page.padding = 0
+        self.page.bgcolor = ft.Colors.SURFACE_CONTAINER_LOWEST
+
+        self.page.theme = ft.Theme(
+            color_scheme_seed=ft.Colors.INDIGO,
+            visual_density=ft.VisualDensity.COMPACT,
+            use_material3=True,
+            scaffold_bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
+            card_theme=ft.CardTheme(color=ft.Colors.SURFACE_CONTAINER_LOW),
+            expansion_tile_theme=ft.ExpansionTileTheme(
+                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                collapsed_bgcolor=ft.Colors.SURFACE_CONTAINER,
+                text_color=ft.Colors.ON_SURFACE,
+                icon_color=ft.Colors.INDIGO,
+            ),
+            data_table_theme=ft.DataTableTheme(
+                heading_row_color=ft.Colors.SURFACE_CONTAINER_HIGH,
+                data_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
+            ),
+        )
+        self.page.dark_theme = ft.Theme(
+            color_scheme_seed=ft.Colors.INDIGO,
+            visual_density=ft.VisualDensity.COMPACT,
+            use_material3=True,
+            scaffold_bgcolor=ft.Colors.SURFACE_CONTAINER_LOWEST,
+            card_theme=ft.CardTheme(color=ft.Colors.SURFACE_CONTAINER_LOW),
+            expansion_tile_theme=ft.ExpansionTileTheme(
+                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                collapsed_bgcolor=ft.Colors.SURFACE_CONTAINER,
+                text_color=ft.Colors.ON_SURFACE,
+                icon_color=ft.Colors.INDIGO_ACCENT,
+            ),
+            data_table_theme=ft.DataTableTheme(
+                heading_row_color=ft.Colors.SURFACE_CONTAINER_HIGH,
+                data_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
+            ),
+        )
 
         # Register services in page.services (fixes Unknown control: FilePicker)
         self.clipboard = ft.Clipboard()
@@ -1539,6 +1575,7 @@ class LimitApp:
         )
 
         main_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(controls=header_items, spacing=10),
                 padding=16,
@@ -1551,6 +1588,7 @@ class LimitApp:
         if res.get("diagnosis") and res["diagnosis"].get("has_indet"):
             diag = res["diagnosis"]
             diag_card = ft.Card(
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1599,6 +1637,7 @@ class LimitApp:
                 )
 
             methods_card = ft.Card(
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1642,6 +1681,7 @@ class LimitApp:
                 )
 
             steps_card = ft.Card(
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1678,10 +1718,18 @@ class LimitApp:
             ]
 
             data_table = ft.DataTable(
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+                heading_row_color=ft.Colors.SURFACE_CONTAINER_HIGH,
+                data_row_color={
+                    "hovered": ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                    "": ft.Colors.SURFACE_CONTAINER_LOW,
+                },
+                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                border_radius=10,
                 columns=[
-                    ft.DataColumn(ft.Text("Окрестность", size=12, weight=ft.FontWeight.BOLD)),
-                    ft.DataColumn(ft.Text(f"{var}", size=12, weight=ft.FontWeight.BOLD)),
-                    ft.DataColumn(ft.Text(f"f({var})", size=12, weight=ft.FontWeight.BOLD)),
+                    ft.DataColumn(ft.Text("Окрестность", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE)),
+                    ft.DataColumn(ft.Text(f"{var}", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE)),
+                    ft.DataColumn(ft.Text(f"f({var})", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE)),
                 ],
                 rows=table_controls,
                 heading_row_height=36,
@@ -1690,6 +1738,7 @@ class LimitApp:
             )
 
             table_card = ft.Card(
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1745,6 +1794,7 @@ class LimitApp:
         self.result_container.visible = True
         self.result_container.controls = [
             ft.Card(
+                bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                 content=ft.Container(
                     content=ft.Column(
                         controls=[
@@ -1908,6 +1958,7 @@ class LimitApp:
         )
 
         ai_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -2021,6 +2072,7 @@ class LimitApp:
 
         # Card 1: Tactile Slider Explorer
         tactile_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -2071,6 +2123,7 @@ class LimitApp:
 
         # Card 2: Epsilon-Delta Rigorous Visualizer
         eps_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -2184,6 +2237,7 @@ class LimitApp:
         ])
 
         disc_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(controls=disc_controls, spacing=10),
                 padding=16,
@@ -2285,6 +2339,7 @@ class LimitApp:
             self.page.run_thread(tutor_worker)
 
         tutor_step_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(
                     controls=[
@@ -2411,6 +2466,7 @@ class LimitApp:
             )
 
         practice_card = ft.Card(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
             content=ft.Container(
                 content=ft.Column(controls=practice_controls, spacing=10),
                 padding=16,
@@ -2460,18 +2516,32 @@ class LimitApp:
             border=ft.OutlineInputBorder(border_radius=12),
             dense=True,
             content_padding=ft.Padding.symmetric(horizontal=12, vertical=8),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_color=ft.Colors.OUTLINE_VARIANT,
             on_change=self.on_handbook_search_change,
         )
 
         # Category Filter Chips
         cat_chips = []
-        all_cats = ["Все", "Замечательные пределы", "Экспоненты и логарифмы", "Тригонометрия", "Рациональные и иррациональные", "Односторонние пределы и разрывы"]
+        all_cats = [
+            "Все",
+            "Замечательные пределы",
+            "Экспоненты и логарифмы",
+            "Тригонометрия",
+            "Рациональные и иррациональные",
+            "Односторонние пределы и разрывы",
+        ]
         for cat_name in all_cats:
             is_active = (self.handbook_category_filter == cat_name)
             short_label = cat_name.replace(" и логарифмы", "").replace(" и иррациональные", "").replace(" и разрывы", "")
             cat_chips.append(
                 ft.Container(
-                    content=ft.Text(short_label, size=11, weight=ft.FontWeight.W_600, color=ft.Colors.WHITE if is_active else ft.Colors.ON_SURFACE),
+                    content=ft.Text(
+                        short_label,
+                        size=11,
+                        weight=ft.FontWeight.W_600,
+                        color=ft.Colors.WHITE if is_active else ft.Colors.ON_SURFACE,
+                    ),
                     padding=ft.Padding.symmetric(horizontal=10, vertical=5),
                     bgcolor=ft.Colors.PRIMARY if is_active else ft.Colors.SURFACE_CONTAINER_HIGH,
                     border_radius=8,
@@ -2484,7 +2554,7 @@ class LimitApp:
         cat_chips_row = ft.Row(controls=cat_chips, scroll=ft.ScrollMode.ADAPTIVE, spacing=6)
 
         items = [search_field, cat_chips_row]
-        q = self.handbook_search_query
+        q = self.handbook_search_query.strip().lower()
 
         # Presets by category
         for cat in presets.CATEGORIES:
@@ -2494,7 +2564,12 @@ class LimitApp:
 
             cat_cards = []
             for p in cat["items"]:
-                if q and (q not in p["title"].lower() and q not in p["formula"].lower() and q not in p["desc"].lower() and q not in p["expr"].lower()):
+                if q and (
+                    q not in p["title"].lower()
+                    and q not in p["formula"].lower()
+                    and q not in p["desc"].lower()
+                    and q not in p["expr"].lower()
+                ):
                     continue
 
                 cat_cards.append(
@@ -2504,7 +2579,12 @@ class LimitApp:
                                 ft.Row(
                                     controls=[
                                         ft.Container(
-                                            content=ft.Text(p["title"], weight=ft.FontWeight.BOLD, size=13),
+                                            content=ft.Text(
+                                                p["title"],
+                                                weight=ft.FontWeight.BOLD,
+                                                size=13,
+                                                color=ft.Colors.ON_SURFACE,
+                                            ),
                                             expand=True,
                                         ),
                                         ft.Container(
@@ -2521,11 +2601,15 @@ class LimitApp:
                                 ft.Text(p["desc"], size=11, color=ft.Colors.ON_SURFACE_VARIANT),
                                 ft.Row(
                                     controls=[
-                                        ft.TextButton(
+                                        ft.FilledTonalButton(
                                             content=ft.Row(
                                                 controls=[ft.Icon(ft.Icons.PLAY_ARROW, size=16), ft.Text("Решить в калькуляторе", size=12)],
                                                 spacing=4,
                                                 tight=True,
+                                            ),
+                                            style=ft.ButtonStyle(
+                                                shape=ft.RoundedRectangleBorder(radius=8),
+                                                padding=ft.Padding.symmetric(horizontal=10, vertical=6),
                                             ),
                                             on_click=lambda e, pr=p: self.load_preset(pr),
                                         )
@@ -2537,7 +2621,7 @@ class LimitApp:
                             spacing=6,
                         ),
                         padding=12,
-                        margin=ft.Margin.only(bottom=8),
+                        margin=ft.Margin.only(bottom=8, left=6, right=6),
                         bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
                         border_radius=12,
                         border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
@@ -2546,51 +2630,93 @@ class LimitApp:
 
             if cat_cards:
                 items.append(
-                    ft.ExpansionTile(
-                        title=ft.Text(cat["category"], weight=ft.FontWeight.BOLD, size=15),
-                        leading=ft.Icon(ft.Icons.FUNCTIONS, color=ft.Colors.INDIGO_ACCENT),
-                        controls=cat_cards,
-                        expanded=(self.handbook_category_filter != "Все" or bool(q)),
+                    ft.Container(
+                        content=ft.ExpansionTile(
+                            title=ft.Text(cat["category"], weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.ON_SURFACE),
+                            leading=ft.Icon(ft.Icons.FUNCTIONS, color=ft.Colors.INDIGO_ACCENT, size=20),
+                            text_color=ft.Colors.ON_SURFACE,
+                            icon_color=ft.Colors.INDIGO_ACCENT,
+                            collapsed_text_color=ft.Colors.ON_SURFACE,
+                            collapsed_icon_color=ft.Colors.INDIGO_ACCENT,
+                            bgcolor=ft.Colors.TRANSPARENT,
+                            collapsed_bgcolor=ft.Colors.TRANSPARENT,
+                            shape=ft.Border.all(0, ft.Colors.TRANSPARENT),
+                            collapsed_shape=ft.Border.all(0, ft.Colors.TRANSPARENT),
+                            controls=cat_cards,
+                            expanded=(self.handbook_category_filter != "Все" or bool(q)),
+                        ),
+                        bgcolor=ft.Colors.SURFACE_CONTAINER,
+                        border_radius=14,
+                        border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                        padding=ft.Padding.only(left=4, right=4, bottom=4),
+                        margin=ft.Margin.only(bottom=8),
                     )
                 )
 
         # Equivalents Table Card
         equiv_rows = [
             ft.DataRow(
+                color={
+                    "hovered": ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                    "": ft.Colors.SURFACE_CONTAINER_LOW,
+                },
                 cells=[
-                    ft.DataCell(ft.Text(e["source"], weight=ft.FontWeight.BOLD, size=12)),
-                    ft.DataCell(ft.Text("~", color=ft.Colors.PRIMARY, size=14)),
+                    ft.DataCell(ft.Text(e["source"], weight=ft.FontWeight.BOLD, size=12, color=ft.Colors.ON_SURFACE)),
+                    ft.DataCell(ft.Text("~", color=ft.Colors.PRIMARY, size=14, weight=ft.FontWeight.BOLD)),
                     ft.DataCell(ft.Text(e["equiv"], color=ft.Colors.PRIMARY, weight=ft.FontWeight.BOLD, size=12)),
                     ft.DataCell(ft.Text(e["cond"], size=11, color=ft.Colors.ON_SURFACE_VARIANT)),
-                ]
+                ],
             )
             for e in presets.EQUIVALENCES
         ]
 
         equiv_table = ft.DataTable(
+            bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+            heading_row_color=ft.Colors.SURFACE_CONTAINER_HIGH,
+            data_row_color={
+                "hovered": ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                "": ft.Colors.SURFACE_CONTAINER_LOW,
+            },
+            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+            border_radius=10,
             columns=[
-                ft.DataColumn(ft.Text("Функция")),
-                ft.DataColumn(ft.Text("")),
-                ft.DataColumn(ft.Text("Эквивалент")),
-                ft.DataColumn(ft.Text("Условие")),
+                ft.DataColumn(ft.Text("Функция", weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE, size=12)),
+                ft.DataColumn(ft.Text("", color=ft.Colors.ON_SURFACE)),
+                ft.DataColumn(ft.Text("Эквивалент", weight=ft.FontWeight.BOLD, color=ft.Colors.PRIMARY, size=12)),
+                ft.DataColumn(ft.Text("Условие", weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE_VARIANT, size=12)),
             ],
             rows=equiv_rows,
             heading_row_height=36,
-            data_row_min_height=30,
-            data_row_max_height=34,
+            data_row_min_height=32,
+            data_row_max_height=36,
         )
 
         items.append(
-            ft.ExpansionTile(
-                title=ft.Text("Таблица эквивалентных бесконечно малых", weight=ft.FontWeight.BOLD, size=14),
-                leading=ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400),
-                controls=[
-                    ft.Container(
-                        content=ft.Row(controls=[equiv_table], scroll=ft.ScrollMode.ADAPTIVE, alignment=ft.MainAxisAlignment.CENTER),
-                        padding=8,
-                        alignment=ft.Alignment.CENTER,
-                    )
-                ],
+            ft.Container(
+                content=ft.ExpansionTile(
+                    title=ft.Text("Таблица эквивалентных бесконечно малых", weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.ON_SURFACE),
+                    leading=ft.Icon(ft.Icons.AUTO_AWESOME, color=ft.Colors.AMBER_400, size=20),
+                    text_color=ft.Colors.ON_SURFACE,
+                    icon_color=ft.Colors.AMBER_400,
+                    collapsed_text_color=ft.Colors.ON_SURFACE,
+                    collapsed_icon_color=ft.Colors.AMBER_400,
+                    bgcolor=ft.Colors.TRANSPARENT,
+                    collapsed_bgcolor=ft.Colors.TRANSPARENT,
+                    shape=ft.Border.all(0, ft.Colors.TRANSPARENT),
+                    collapsed_shape=ft.Border.all(0, ft.Colors.TRANSPARENT),
+                    controls=[
+                        ft.Container(
+                            content=ft.Row(controls=[equiv_table], scroll=ft.ScrollMode.ADAPTIVE, alignment=ft.MainAxisAlignment.CENTER),
+                            padding=8,
+                            alignment=ft.Alignment.CENTER,
+                        )
+                    ],
+                ),
+                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                border_radius=14,
+                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                padding=ft.Padding.only(left=4, right=4, bottom=4),
+                margin=ft.Margin.only(bottom=8),
             )
         )
 
@@ -2601,23 +2727,52 @@ class LimitApp:
                 ft.Container(
                     content=ft.Column(
                         controls=[
-                            ft.Text(ind["type"], weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.AMBER_300),
-                            ft.Text(ind["methods"], size=11),
+                            ft.Row(
+                                controls=[
+                                    ft.Container(
+                                        content=ft.Text(ind["type"], weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.AMBER_300),
+                                        padding=ft.Padding.symmetric(horizontal=8, vertical=2),
+                                        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                                        border_radius=6,
+                                        border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                                    ),
+                                    ft.Text("Тип неопределенности", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
+                                ],
+                                spacing=8,
+                                alignment=ft.MainAxisAlignment.START,
+                            ),
+                            ft.Text(ind["methods"], size=12, color=ft.Colors.ON_SURFACE),
                         ],
-                        spacing=4,
+                        spacing=6,
                     ),
                     padding=10,
-                    margin=ft.Margin.only(bottom=6),
+                    margin=ft.Margin.only(bottom=8, left=6, right=6),
                     bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                    border_radius=8,
+                    border_radius=10,
+                    border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
                 )
             )
 
         items.append(
-            ft.ExpansionTile(
-                title=ft.Text("Таблица 7 типов неопределенностей", weight=ft.FontWeight.BOLD, size=14),
-                leading=ft.Icon(ft.Icons.HELP_OUTLINE, color=ft.Colors.CYAN_400),
-                controls=indet_cards,
+            ft.Container(
+                content=ft.ExpansionTile(
+                    title=ft.Text("Таблица 7 типов неопределенностей", weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.ON_SURFACE),
+                    leading=ft.Icon(ft.Icons.HELP_OUTLINE, color=ft.Colors.CYAN_400, size=20),
+                    text_color=ft.Colors.ON_SURFACE,
+                    icon_color=ft.Colors.CYAN_400,
+                    collapsed_text_color=ft.Colors.ON_SURFACE,
+                    collapsed_icon_color=ft.Colors.CYAN_400,
+                    bgcolor=ft.Colors.TRANSPARENT,
+                    collapsed_bgcolor=ft.Colors.TRANSPARENT,
+                    shape=ft.Border.all(0, ft.Colors.TRANSPARENT),
+                    collapsed_shape=ft.Border.all(0, ft.Colors.TRANSPARENT),
+                    controls=indet_cards,
+                ),
+                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                border_radius=14,
+                border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
+                padding=ft.Padding.only(left=4, right=4, bottom=4),
+                margin=ft.Margin.only(bottom=8),
             )
         )
 
@@ -2677,6 +2832,7 @@ class LimitApp:
                 spacing=4,
                 tight=True,
             ),
+            style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
             on_click=clear_history,
         )
 
@@ -2684,10 +2840,16 @@ class LimitApp:
         filter_row = ft.Row(
             controls=[
                 ft.Container(
-                    content=ft.Text(f"Все ({len(self.history)})", size=12, weight=ft.FontWeight.W_600),
+                    content=ft.Text(
+                        f"Все ({len(self.history)})",
+                        size=12,
+                        weight=ft.FontWeight.W_600,
+                        color=ft.Colors.WHITE if self.history_filter == "all" else ft.Colors.ON_SURFACE,
+                    ),
                     padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-                    bgcolor=ft.Colors.PRIMARY_CONTAINER if self.history_filter == "all" else ft.Colors.SURFACE_CONTAINER_HIGH,
+                    bgcolor=ft.Colors.PRIMARY if self.history_filter == "all" else ft.Colors.SURFACE_CONTAINER_HIGH,
                     border_radius=8,
+                    border=ft.Border.all(1, ft.Colors.PRIMARY if self.history_filter == "all" else ft.Colors.OUTLINE_VARIANT),
                     ink=True,
                     on_click=lambda e: set_history_filter("all"),
                 ),
@@ -2695,14 +2857,20 @@ class LimitApp:
                     content=ft.Row(
                         controls=[
                             ft.Icon(ft.Icons.STAR, size=14, color=ft.Colors.AMBER_400),
-                            ft.Text(f"Избранное ({fav_count})", size=12, weight=ft.FontWeight.W_600),
+                            ft.Text(
+                                f"Избранное ({fav_count})",
+                                size=12,
+                                weight=ft.FontWeight.W_600,
+                                color=ft.Colors.WHITE if self.history_filter == "fav" else ft.Colors.ON_SURFACE,
+                            ),
                         ],
                         spacing=4,
                         tight=True,
                     ),
                     padding=ft.Padding.symmetric(horizontal=12, vertical=6),
-                    bgcolor=ft.Colors.PRIMARY_CONTAINER if self.history_filter == "fav" else ft.Colors.SURFACE_CONTAINER_HIGH,
+                    bgcolor=ft.Colors.PRIMARY if self.history_filter == "fav" else ft.Colors.SURFACE_CONTAINER_HIGH,
                     border_radius=8,
+                    border=ft.Border.all(1, ft.Colors.PRIMARY if self.history_filter == "fav" else ft.Colors.OUTLINE_VARIANT),
                     ink=True,
                     on_click=lambda e: set_history_filter("fav"),
                 ),
@@ -2721,14 +2889,37 @@ class LimitApp:
                 ft.Container(
                     content=ft.Column(
                         controls=[
-                            ft.Icon(ft.Icons.HISTORY, size=48, color=ft.Colors.ON_SURFACE_VARIANT),
-                            ft.Text("История пуста", size=16, weight=ft.FontWeight.BOLD),
-                            ft.Text("Здесь будут сохраняться вычисленные вами пределы.", size=12, color=ft.Colors.ON_SURFACE_VARIANT, text_align=ft.TextAlign.CENTER),
+                            ft.Container(
+                                content=ft.Icon(ft.Icons.HISTORY_ROUNDED, size=48, color=ft.Colors.INDIGO_ACCENT),
+                                padding=12,
+                                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                                shape=ft.BoxShape.CIRCLE,
+                            ),
+                            ft.Text("История пуста", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE),
+                            ft.Text(
+                                "Здесь будут сохраняться вычисленные вами пределы с подробными результатами и метками времени.",
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                                text_align=ft.TextAlign.CENTER,
+                            ),
+                            ft.OutlinedButton(
+                                content=ft.Row(
+                                    controls=[ft.Icon(ft.Icons.PLAY_ARROW, size=15), ft.Text("Решить первый пример", size=12)],
+                                    spacing=4,
+                                    tight=True,
+                                ),
+                                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)),
+                                on_click=self.load_random_example,
+                            ),
                         ],
                         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        spacing=8,
+                        spacing=10,
                     ),
-                    padding=30,
+                    padding=24,
+                    margin=ft.Margin.symmetric(vertical=10),
+                    bgcolor=ft.Colors.SURFACE_CONTAINER,
+                    border_radius=16,
+                    border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
                     alignment=ft.Alignment.CENTER,
                 )
             )
@@ -2775,7 +2966,7 @@ class LimitApp:
                         controls=[
                             ft.Column(
                                 controls=[
-                                    ft.Text(f"lim ({d_label}) [{item['expr']}]", weight=ft.FontWeight.BOLD, size=13, overflow=ft.TextOverflow.ELLIPSIS, max_lines=2),
+                                    ft.Text(f"lim ({d_label}) [{item['expr']}]", weight=ft.FontWeight.BOLD, size=13, color=ft.Colors.ON_SURFACE, overflow=ft.TextOverflow.ELLIPSIS, max_lines=2),
                                     ft.Text(f"Время: {item.get('time', '--:--')}", size=11, color=ft.Colors.ON_SURFACE_VARIANT),
                                 ],
                                 spacing=2,
@@ -2788,6 +2979,7 @@ class LimitApp:
                                         padding=ft.Padding.symmetric(horizontal=8, vertical=4),
                                         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                                         border_radius=6,
+                                        border=ft.Border.all(0.8, ft.Colors.OUTLINE_VARIANT),
                                     ),
                                     fav_icon,
                                 ],
@@ -2797,8 +2989,8 @@ class LimitApp:
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
-                    padding=ft.Padding.symmetric(horizontal=12, vertical=8),
-                    bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+                    padding=ft.Padding.symmetric(horizontal=12, vertical=10),
+                    bgcolor=ft.Colors.SURFACE_CONTAINER,
                     border_radius=12,
                     border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
                     ink=True,
@@ -2807,36 +2999,44 @@ class LimitApp:
             )
 
         # About Card at the bottom of History tab
-        about_card = ft.Card(
-            content=ft.Container(
-                content=ft.Column(
-                    controls=[
-                        ft.Row(
-                            controls=[
-                                ft.Icon(ft.Icons.PERSON, color=ft.Colors.PRIMARY),
-                                ft.Text("Об авторе и приложении", weight=ft.FontWeight.BOLD, size=14),
-                            ],
-                            spacing=8,
-                        ),
-                        ft.Text("LimitApp v1.6.0 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).", size=12),
-                        ft.Row(
-                            controls=[
-                                ft.FilledTonalButton(
-                                    content=ft.Row([ft.Icon(ft.Icons.SEND, size=14), ft.Text("Telegram", size=11)], spacing=4, tight=True),
-                                    url="https://t.me/syrok_dev",
-                                ),
-                                ft.FilledTonalButton(
-                                    content=ft.Row([ft.Icon(ft.Icons.CODE, size=14), ft.Text("GitHub", size=11)], spacing=4, tight=True),
-                                    url="https://github.com/MaloyDevil/limitapp",
-                                ),
-                            ],
-                            spacing=8,
-                        ),
-                    ],
-                    spacing=8,
-                ),
-                padding=14,
+        about_card = ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Row(
+                        controls=[
+                            ft.Icon(ft.Icons.VERIFIED_USER_OUTLINED, color=ft.Colors.INDIGO_ACCENT, size=20),
+                            ft.Text("Об авторе и проекте", weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.ON_SURFACE),
+                        ],
+                        spacing=8,
+                    ),
+                    ft.Text(
+                        "LimitApp v1.6.0 AI Tutor Pro — Нарницкий Роман (никнейм Syrok).\n"
+                        "Умный интерактивный репетитор по высшей математике: пошаговый расчет пределов, "
+                        "визуальное исследование ε-δ, сравнение методов и интеграция с Google Gemini AI.",
+                        size=12,
+                        color=ft.Colors.ON_SURFACE_VARIANT,
+                    ),
+                    ft.Row(
+                        controls=[
+                            ft.FilledTonalButton(
+                                content=ft.Row([ft.Icon(ft.Icons.SEND, size=14), ft.Text("Telegram: @syrok_dev", size=11)], spacing=4, tight=True),
+                                url="https://t.me/syrok_dev",
+                            ),
+                            ft.FilledTonalButton(
+                                content=ft.Row([ft.Icon(ft.Icons.CODE, size=14), ft.Text("GitHub Репозиторий", size=11)], spacing=4, tight=True),
+                                url="https://github.com/MaloyDevil/limitapp",
+                            ),
+                        ],
+                        spacing=8,
+                        wrap=True,
+                    ),
+                ],
+                spacing=10,
             ),
+            padding=16,
+            bgcolor=ft.Colors.SURFACE_CONTAINER,
+            border_radius=14,
+            border=ft.Border.all(1, ft.Colors.OUTLINE_VARIANT),
         )
         history_items.append(about_card)
 
